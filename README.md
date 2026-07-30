@@ -1,4 +1,4 @@
-[![English](https://img.shields.io/badge/Language-English-red)](#) [![Français](https://img.shields.io/badge/Langue-Fran%C3%A7ais-blue)](README.fr.md)
+[![Français](https://img.shields.io/badge/Langue-Fran%C3%A7ais-blue)](README.fr.md) [![English](https://img.shields.io/badge/Language-English-red)](#)
 
 # Hydrao Custom for Home Assistant 🚿
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
@@ -19,7 +19,7 @@ If you find this project helpful, you can support its development 🙏
 - 🏠 Home Assistant compatible (No Cloud)
 - 🚿 Detailed tracking for each shower: Volume, duration, wasted cold water volume
 - 🔄⭐ Comfort Mode Sync: Automatic reset of the device's counter as soon as the water reaches the defined Minimum Comfort Temperature
-- 🎨 Configuration of the 4 liter thresholds and their colors via an integrated selector
+- 🎨 Configuration of the 4 liter thresholds and their colors via an integrated direct selector
 - 🌡️ Minimum Comfort Temperature adjustable in Home Assistant (not sent to the Hydrao device)
 - 🔘 "Shower Ended" button to manually close a shower or via automation (e.g., Hey Google, Shower Ended "Name") — <sub>an `input_boolean` may be required to link it to Google Assistant</sub>
 - ⚙️ 2-minute installation via HACS
@@ -74,12 +74,12 @@ This integration directly leverages your Hydrao's BLE protocol for comprehensive
 * 🏠 **100% Local (BLE)**: Zero Cloud dependency.
 * 💧 **Detailed Volumes**: Total cumulative volume, current shower volume, comfort volume, wasted volume (cold water) — available as session totals and lifetime totals.
 * ⏱️ **Detailed Durations**: Current shower duration and time spent in the comfort zone.
-* 🎨 **Thresholds & Colors**: Configure the 4 liter thresholds and their colors via an integrated selector, read and modified live on the device.
+* 🎨 **Thresholds & Colors**: Configuration of the 4 liter thresholds and their colors via an integrated direct selector, read and modified live on the device.
 * 🌡️ **Minimum Comfort Temperature**: Adjustable in Home Assistant via a Number entity with validated range (0 - 50 °C) — this setting stays in Home Assistant and is never sent to the Hydrao device.
 * 🧴 **Maximum Soaping Time**: Adjustable duration before the counters reset (10 to 600 seconds).
 * 🔘 **"Shower Ended" Button**: Manually ends the current counting without waiting for the water to stop. <sub>Tip: an `input_boolean` may be required to link this button to Google Assistant.</sub>
 * 🔵 **Detailed Bluetooth Status**: Water Off, Connecting, Connected, Error, Sending Configuration, Configuration Applied, Failed, or Restarting Device.
-* 📋 **Pending Configuration**: Indicates at a glance if settings (thresholds, colors, soaping time) are queued to be sent to the device.
+* 📋 **Pending Configuration**: Indicates at a glance if settings (thresholds, colors, soaping time) have not yet been sent to the device.
 * 📶 **Live Bluetooth Signal** via passive scanning, without draining the device's battery.
 * 🔧 **Diagnostic**: Firmware, Hardware, and Unique ID exposed as diagnostic sensors.
 * ⚙️ **100% UI Configuration**: Automatic Bluetooth discovery or manual addition via MAC address; everything is managed from the Home Assistant interface.
@@ -114,11 +114,11 @@ Copy the `custom_components/hydrao_custom` folder into your Home Assistant's `cu
 | 🌡️ **Temperature** | °C | Live water temperature. |
 | 🚿 **Shower Volume** | L | Raw volume of the current shower. |
 | 💧 **Comfort Shower Volume** | L | Volume used once the comfort temperature is reached, for the current shower. |
-| 💧 **Total Cumulative Comfort Shower Volume** | L | Historical cumulative volume used in the comfort zone. |
+| 💧 **Total Cumulative Comfort Shower Volume** | L | Historical cumulative volume used once the comfort temperature is reached. |
 | 💧 **Total Cumulative Shower Volume** | L | Total cumulative volume since installation. |
 | ❄️ **Wasted Volume (Cold Water)** | L | Volume wasted before reaching the comfort temperature, for the current shower. |
 | ❄️ **Total Cumulative Wasted Volume** | L | Historical cumulative wasted cold water volume. |
-| 🔄 **Comfort Mode Sync** | Switch | Enables automatic reset as soon as the comfort temperature is reached. |
+| 🔄 **Comfort Mode Sync** | Switch | Enables automatic reset as soon as comfort is reached. |
 | 🌡️ **Minimum Comfort Temperature** | Number (°C) | Adjustable comfort threshold (0 - 50 °C). |
 | 📋 **Pending Configuration** | Status | Setting(s) waiting to be sent to the device (None, Soaping Time, Thresholds, Colors, or combinations). |
 | 💨 **Flow Rate** | L/min | Instantaneous water flow rate. |
@@ -137,7 +137,7 @@ Copy the `custom_components/hydrao_custom` folder into your Home Assistant's `cu
 
 ### ⚙️ Options
 Once the device is added, click **Configure** ⚙️ to:
-* Adjust the Minimum Comfort Temperature, Maximum Soaping Time, and Comfort Mode Sync.
+* Adjust the Minimum Comfort Temperature, the Maximum Soaping Time, and the Comfort Mode Sync.
 * Modify the 4 liter thresholds and their colors (Only after a first successful connection — run the water to wake up the device).
 * Reset to factory defaults in one click.
 
