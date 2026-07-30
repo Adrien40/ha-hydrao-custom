@@ -82,7 +82,7 @@ Cette intégration exploite directement le protocole BLE de votre Hydrao pour un
 * 🌡️ **Température de Confort Minimum** : Réglable dans Home Assistant via une entité Number, avec plage validée (0 - 50 °C) — ce réglage reste dans Home Assistant, il n'est jamais envoyé à l'appareil Hydrao.
 * 🧴 **Temps de Savonnage Maximum** : Durée avant remise à zéro des compteurs, réglable (10 à 600 secondes).
 * 🔘 **Bouton "Douche Terminée"** : Termine manuellement le comptage en cours sans attendre la coupure d'eau. <sub>Astuce : un `input_boolean` peut être nécessaire pour relier ce bouton à Google Assistant.</sub>
-* 🔵 **État Bluetooth détaillé** : Eau Coupée, Connexion, Connecté, Erreur, Envoi de Configuration, Configuration Appliquée, Échec, ou Redémarrage de l'appareil (avec **nouvel essai automatique à la prochaine douche** en cas d'échec d'écriture).
+* 🔵 **État Bluetooth détaillé** : Eau Coupée, Connexion, Connecté, Erreur, Envoi de Configuration, Configuration Appliquée, Échec, ou Redémarrage de l'appareil.
 * 📋 **Configuration en Attente** : Indique en un coup d'œil si des réglages (seuils, couleurs, temps de savonnage) n'ont pas encore pu être envoyés à l'appareil.
 * 📶 **Signal Bluetooth en direct** via écoute passive, sans solliciter l'appareil ni sa batterie.
 * 🔧 **Diagnostic** : Firmware, Hardware et Identifiant Unique de l'appareil exposés en capteurs diagnostic.
