@@ -55,7 +55,7 @@ Cette intégration exploite directement le protocole BLE de votre Hydrao pour un
 
 * **🔒 100 % local :** Aucune connexion internet nécessaire, les données transitent uniquement de la douche à Home Assistant.
 * **🚿 Suivi précis par douche :** Volume, durée, et surtout le volume d'eau froide perdu avant que l'eau ne soit à bonne température.
-* **🔄 Synchro Mode Confort :** Redémarre le compteur sur l'appareil dès que la Température de Confort Minimum est atteinte, pour que les seuils de litres et couleurs ne reflètent que l'eau réellement confortable et donc utilisée.
+* **🔄 Synchro Mode Confort :** Redémarre le compteur sur l'appareil dès que la Température de confort minimum est atteinte, pour que les seuils de litres et couleurs ne reflètent que l'eau réellement confortable et donc utilisée.
 * **🛡️ Pérennité :** Aucune dépendance à un serveur ou une application tierce.
 
 ---
@@ -70,13 +70,13 @@ Cette intégration exploite directement le protocole BLE de votre Hydrao pour un
 ---
 
 ### ✨ Points forts
-* 🔄⭐ **Synchro Mode Confort** (Interrupteur) : Remise à zéro automatique du compteur de l'appareil dès que l'eau atteint la Température de Confort Minimum définie — la fonctionnalité phare de cette intégration.
+* 🔄⭐ **Synchro Mode Confort** (Interrupteur) : Remise à zéro automatique du compteur de l'appareil dès que l'eau atteint la Température de confort minimum définie — la fonctionnalité phare de cette intégration.
 * 🏠 **100 % Local (BLE)** : Aucune dépendance au Cloud.
 * 💧 **Volumes détaillés** : Volume total cumulé, volume de la douche en cours, volume confort, volume perdu (eau froide) — en cumul de session et en cumul total.
 * ⏱️ **Durées détaillées** : Durée de la douche en cours et durée en zone de confort.
 * 🎨 **Seuils & Couleurs** : Réglage des 4 seuils en litres et choix de leur couleur via un sélecteur direct intégré, lus et modifiés en direct sur l'appareil.
-* 🌡️ **Température de Confort Minimum** : Réglable dans Home Assistant via une entité Number, avec plage validée (0 - 50 °C) — ce réglage reste dans Home Assistant, il n'est jamais envoyé à l'appareil Hydrao.
-* 🧴 **Temps de Savonnage Maximum** : Durée avant remise à zéro des compteurs, réglable (10 à 600 secondes).
+* 🌡️ **Température de confort minimum** : Réglable dans Home Assistant via une entité Number, avec plage validée (0 - 50 °C) — ce réglage reste dans Home Assistant, il n'est jamais envoyé à l'appareil Hydrao.
+* 🧴 **Durée maximale de savonnage** : Durée avant remise à zéro des compteurs, réglable (10 à 600 secondes).
 * 🔘 **Bouton "Douche Terminée"** : Termine manuellement le comptage en cours sans attendre la coupure d'eau. <sub>Astuce : un `input_boolean` peut être nécessaire pour relier ce bouton à Google Assistant.</sub>
 * 🔵 **État Bluetooth détaillé** : Eau Coupée, Connexion, Connecté, Erreur, Envoi de Configuration, Configuration Appliquée, Échec, ou Redémarrage de l'appareil.
 * 📋 **Configuration en Attente** : Indique en un coup d'œil si des réglages (seuils, couleurs, temps de savonnage) n'ont pas encore pu être envoyés à l'appareil.
@@ -122,7 +122,7 @@ Copiez le dossier `custom_components/hydrao_custom` dans le dossier `custom_comp
 | 🌡️ **Température de confort minimum** | Number (°C) | Seuil de confort réglable (0 - 50 °C). |
 | 📋 **Configuration en attente** | Statut | Réglage(s) en attente d'envoi à l'appareil (Aucune, Savonnage, Seuils, Couleurs, ou combinaisons). |
 | 💨 **Débit** | L/min | Débit d'eau instantané. |
-| 🧴 **Durée Maximale de Savonnage** | s | Temps de savonnage maximum actuellement configuré, lu sur l'appareil. |
+| 🧴 **Durée maximale de savonnage** | s | Durée maximale de savonnage actuellement configuré, lu sur l'appareil. |
 | 🔵 **État Bluetooth** | Statut | Eau Coupée / Connexion / Connecté / Erreur / Envoi Configuration / Configuration Appliquée / Échec / Redémarrage de l'appareil. |
 | 🟢🔵🩷🔴 **Seuil 1 à 4** | L | Les 4 paliers de litres configurés sur l'appareil, avec leur couleur en attribut. |
 | 📶 **Signal Bluetooth** | dBm | Force du signal Bluetooth reçu en temps réel. |
@@ -133,11 +133,11 @@ Copiez le dossier `custom_components/hydrao_custom` dans le dossier `custom_comp
 ## 🚀 Configuration
 1. Allez dans **Paramètres** > **Appareils et services**.
 2. **Si l'eau coule et que l'appareil Hydrao est à portée**, Home Assistant le détecte automatiquement : ouvrez la notification de découverte et suivez l'assistant. **Sinon**, cliquez sur **Ajouter une intégration**, recherchez **Hydrao Custom**, puis renseignez l'adresse MAC de l'appareil manuellement.
-3. Dans les deux cas, vous pouvez régler la Température de Confort Minimum dès cette étape.
+3. Dans les deux cas, vous pouvez régler la Température de confort minimum dès cette étape.
 
 ### ⚙️ Options
 Une fois l'appareil ajouté, cliquez sur **Configurer** ⚙️ pour :
-* Ajuster la Température de confort minimum, la Durée maximale de Savonnage et la Synchro Mode Confort.
+* Ajuster la Température de confort minimum, la Durée maximale de savonnage et la Synchro Mode Confort.
 * Modifier les 4 seuils de litres et leurs couleurs (Uniquement une fois une première connexion établie — faites couler l'eau pour réveiller l'appareil).
 * Réinitialiser aux valeurs d'usine en un clic.
 
