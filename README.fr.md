@@ -4,6 +4,10 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/v/release/Adrien40/ha-hydrao-custom)](https://github.com/Adrien40/ha-hydrao-custom/releases)
 
+Une **intégration 100 % locale pour Home Assistant** qui dialogue directement en Bluetooth Low Energy (BLE) avec votre appareil de douche Hydrao, pour suivre votre consommation d'eau douche après douche, sans aucune dépendance au Cloud. 🛡️
+
+> ℹ️ **À savoir** : Cette intégration interroge directement l'appareil Hydrao en Bluetooth pendant que l'eau coule — c'est nécessaire pour lire les données et envoyer les réglages en direct à l'appareil.
+
 Si ce projet vous est utile, vous pouvez soutenir son développement 🙏
 
 <a href="https://www.buymeacoffee.com/adrien40"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" width="160"></a>
@@ -34,8 +38,6 @@ Si ce projet vous est utile, vous pouvez soutenir son développement 🙏
   <em>📊 Vue d'ensemble des données de douche dans Home Assistant</em>
 </p>
 
----
-
 ### 🔍 Détails techniques
 
 <p align="center">
@@ -46,20 +48,14 @@ Si ce projet vous est utile, vous pouvez soutenir son développement 🙏
   <em>🔍 Entités exposées par l'intégration & ⚙️ Options de Configuration avancées</em>
 </p>
 
-> *(Captures d'écran à ajouter dans `docs/screenshots/` — voir la note en fin de fichier.)*
-
 ---
-
-Une **intégration 100 % locale pour Home Assistant** qui dialogue directement en Bluetooth Low Energy (BLE) avec votre appareil de douche Hydrao, pour suivre votre consommation d'eau douche après douche, sans aucune dépendance au Cloud. 🛡️
-
-> ⚠️ **Avertissement** : Cette intégration interroge directement l'appareil Hydrao en Bluetooth pendant que l'eau coule.
 
 ### 💡 Pourquoi cette intégration ?
 Cette intégration exploite directement le protocole BLE de votre Hydrao pour un suivi domotique complet, sans compromis :
 
 * **🔒 100 % local :** Aucune connexion internet nécessaire, les données transitent uniquement de la douche à Home Assistant.
 * **🚿 Suivi précis par douche :** Volume, durée, et surtout le volume d'eau froide perdu avant que l'eau ne soit à bonne température.
-* **🔄 Synchro Mode Confort :** Redémarre le compteur sur l'appareil dès que la Température de Confort Minimum est atteinte, pour que les seuils de litres et couleurs ne reflètent que l'eau réellement confortable et donc utilisé.
+* **🔄 Synchro Mode Confort :** Redémarre le compteur sur l'appareil dès que la Température de Confort Minimum est atteinte, pour que les seuils de litres et couleurs ne reflètent que l'eau réellement confortable et donc utilisée.
 * **🛡️ Pérennité :** Aucune dépendance à un serveur ou une application tierce.
 
 ---
@@ -85,7 +81,7 @@ Cette intégration exploite directement le protocole BLE de votre Hydrao pour un
 * 🔵 **État Bluetooth détaillé** : Eau Coupée, Connexion, Connecté, Erreur, Envoi de Configuration, Configuration Appliquée, Échec, ou Redémarrage de l'appareil.
 * 📋 **Configuration en Attente** : Indique en un coup d'œil si des réglages (seuils, couleurs, temps de savonnage) n'ont pas encore pu être envoyés à l'appareil.
 * 📶 **Signal Bluetooth en direct** via écoute passive, sans solliciter l'appareil ni sa batterie.
-* 🔧 **Diagnostic** : Firmware, Hardware et Identifiant Unique de l'appareil exposés en capteurs diagnostic.
+* 🔧 **Diagnostic** : Firmware, Hardware et Identifiant Unique de l'appareil exposés en capteurs de diagnostic.
 * ⚙️ **Configuration 100 % UI** : Découverte automatique Bluetooth ou ajout manuel par adresse MAC, tout se règle depuis l'interface Home Assistant.
 * 🔄 **Réinitialisation aux valeurs d'usine** disponible directement depuis les options.
 
@@ -117,16 +113,18 @@ Copiez le dossier `custom_components/hydrao_custom` dans le dossier `custom_comp
 | 💨 **Débit** | L/min | Débit d'eau instantané. |
 | ❄️ **Volume Perdu (Eau Froide)** | L | Volume perdu avant d'atteindre la température de confort, pour la douche en cours. |
 | ❄️ **Volume Perdu Total Cumulé** | L | Cumul historique du volume perdu en eau froide. |
-| 💧 **Volume Confort** | L | Volume utilisé une fois la température de confort atteinte. |
+| 💧 **Volume Confort** | L | Volume utilisé une fois la température de confort atteinte, pour la douche en cours. |
+| 💧 **Volume Confort Total Cumulé** | L | Cumul historique du volume utilisé une fois la température de confort atteinte. |
 | 🚿 **Volume Douche** | L | Volume brut de la douche en cours. |
 | ⏱️ **Durée Douche** | min | Durée brute de la douche en cours. |
 | ⏱️ **Durée Confort** | min | Durée passée en zone de confort. |
+| 🧴 **Durée Maximale de Savonnage** | s | Temps de savonnage maximum actuellement configuré, lu sur l'appareil. |
 | 🟢🔵🩷🔴 **Seuil 1 à 4** | L | Les 4 paliers de litres configurés sur l'appareil, avec leur couleur en attribut. |
 | 🔵 **État Bluetooth** | Statut | Eau Coupée / Connexion / Connecté / Erreur / Envoi Configuration / Configuration Appliquée / Échec / Redémarrage de l'appareil. |
 | 📋 **Configuration en Attente** | Statut | Réglage(s) en attente d'envoi à l'appareil (Aucune, Savonnage, Seuils, Couleurs, ou combinaisons). |
 | 📶 **Signal Bluetooth** | dBm | Force du signal Bluetooth reçu en temps réel. |
 | 🔧 **Version Firmware / Hardware / Identifiant Unique** | Diagnostic | Informations techniques de l'appareil. |
-| 🌡️ **Température Confort Minimum** | Number (°C) | Seuil de confort réglable (0 - 50 °C). |
+| 🌡️ **Température de Confort Minimum** | Number (°C) | Seuil de confort réglable (0 - 50 °C). |
 | 🔄 **Synchro Mode Confort** | Interrupteur | Active la remise à zéro automatique dès le confort atteint. |
 | 🔘 **Douche Terminée** | Bouton | Termine manuellement le comptage de la douche en cours. |
 
@@ -134,9 +132,8 @@ Copiez le dossier `custom_components/hydrao_custom` dans le dossier `custom_comp
 
 ## 🚀 Configuration
 1. Allez dans **Paramètres** > **Appareils et services**.
-2. L'intégration détecte automatiquement votre Hydrao si l'eau coule et que l'appareil est à portée (Ou ajoutez-le manuellement par adresse MAC).
-3. Cliquez sur **Ajouter une intégration** et recherchez **Hydrao Custom**.
-4. Réglez si besoin la Température de Confort Minimum dès cette étape.
+2. **Si l'eau coule et que l'appareil Hydrao est à portée**, Home Assistant le détecte automatiquement : ouvrez la notification de découverte et suivez l'assistant. **Sinon**, cliquez sur **Ajouter une intégration**, recherchez **Hydrao Custom**, puis renseignez l'adresse MAC de l'appareil manuellement.
+3. Dans les deux cas, vous pouvez régler la Température de Confort Minimum dès cette étape.
 
 ### ⚙️ Options
 Une fois l'appareil ajouté, cliquez sur **Configurer** ⚙️ pour :
@@ -165,11 +162,8 @@ Une fois l'appareil ajouté, cliquez sur **Configurer** ⚙️ pour :
 ### 🤝 Contributions & Support
 Pour tout bug ou demande d'amélioration, merci d'ouvrir une [Issue](https://github.com/Adrien40/ha-hydrao-custom/issues) sur ce dépôt.
 
-### ⚠️ Avertissement (Disclaimer)
-Cette intégration est un projet indépendant. Elle n'a aucun lien, de près ou de loin, avec la société Hydrao. L'utilisation de ce logiciel se fait sous votre propre responsabilité.
-
-### ⚖️ Licence
-Projet sous licence **GPLv3**. Indépendant de la société Hydrao. Utilisation sous votre entière responsabilité.
+### ⚖️ Licence & Avertissement
+Projet sous licence **GPLv3**. Il s'agit d'un projet indépendant, sans aucun lien avec la société Hydrao. L'utilisation de ce logiciel se fait sous votre propre responsabilité.
 
 ---
 
