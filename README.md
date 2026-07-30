@@ -82,7 +82,7 @@ This integration directly leverages your Hydrao's BLE protocol for complete home
 * 🌡️ **Minimum Comfort Temperature** : Adjustable in Home Assistant via a Number entity, with a validated range (0 - 50 °C) — this setting stays in Home Assistant and is never sent to the Hydrao device.
 * 🧴 **Maximum Lathering Time** : Duration before the counters reset, adjustable (10 to 600 seconds).
 * 🔘 **"Shower Finished" button** : Manually ends the current shower count without waiting for the water to be turned off. <sub>Tip: an `input_boolean` may be needed to link this button to Google Assistant.</sub>
-* 🔵 **Detailed Bluetooth state** : Water Off, Connecting, Connected, Error, Sending Configuration, Configuration Applied, Failed, or Rebooting Device (with **automatic retry on the next shower** in case of a write failure).
+* 🔵 **Detailed Bluetooth state** : Water Off, Connecting, Connected, Error, Sending Configuration, Configuration Applied, Failed, or Rebooting Device.
 * 📋 **Pending Configuration** : Shows at a glance whether any settings (thresholds, colors, lathering time) have not been sent to the device yet.
 * 📶 **Live Bluetooth signal** via passive listening, without polling the device or draining its battery.
 * 🔧 **Diagnostics** : Firmware, Hardware, and Unique Identifier of the device exposed as diagnostic sensors.
