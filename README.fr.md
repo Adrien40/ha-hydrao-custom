@@ -18,7 +18,7 @@ Si ce projet vous est utile, vous pouvez soutenir son développement 🙏
 - 🔌 Fonctionnement 100 % local via Bluetooth (BLE)
 - 🏠 Compatible Home Assistant (Sans cloud)
 - 🚿 Suivi détaillé de chaque douche : Volume, durée, volume perdu en eau froide
-- 🔄⭐ Synchro Mode Confort : Remise à zéro automatique du compteur de l'appareil dès que l'eau atteint la Température de Confort Minimum définie
+- 🔄⭐ Synchro Mode Confort : Remise à zéro automatique du compteur de l'appareil dès que l'eau atteint la Température de confort minimum définie
 - 🎨 Réglage des 4 seuils en litres et choix de leur couleur via un sélecteur direct intégré
 - 🌡️ Température de confort minimum réglable dans Home Assistant (pas d'envoi à l'appareil Hydrao)
 - 🔘 Bouton "Douche Terminée" pour clôturer une douche manuellement ou via une automatisation (Ex. : Hey Google, Douche Terminée "Prénom") — <sub>un `input_boolean` peut être nécessaire pour le relier à Google Assistant</sub>
