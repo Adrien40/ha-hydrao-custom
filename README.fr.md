@@ -108,25 +108,25 @@ Copiez le dossier `custom_components/hydrao_custom` dans le dossier `custom_comp
 ### 📊 Capteurs et Contrôles disponibles
 | Entité | Unité / Type | Description |
 | :--- | :--- | :--- |
-| 🌡️ **Température** | °C | Température de l'eau mesurée en direct. |
-| 💧 **Volume Total Cumulé** | L | Volume total cumulé depuis l'installation. |
-| 💨 **Débit** | L/min | Débit d'eau instantané. |
-| ❄️ **Volume Perdu (Eau Froide)** | L | Volume perdu avant d'atteindre la température de confort, pour la douche en cours. |
-| ❄️ **Volume Perdu Total Cumulé** | L | Cumul historique du volume perdu en eau froide. |
-| 💧 **Volume Confort** | L | Volume utilisé une fois la température de confort atteinte, pour la douche en cours. |
-| 💧 **Volume Confort Total Cumulé** | L | Cumul historique du volume utilisé une fois la température de confort atteinte. |
-| 🚿 **Volume Douche** | L | Volume brut de la douche en cours. |
+| 🔘 **Douche Terminée** | Bouton | Termine manuellement le comptage de la douche en cours. |
 | ⏱️ **Durée Douche** | min | Durée brute de la douche en cours. |
-| ⏱️ **Durée Confort** | min | Durée passée en zone de confort. |
+| ⏱️ **Durée Douche Confort** | min | Durée passée en zone de confort. |
+| 🌡️ **Température** | °C | Température de l'eau mesurée en direct. |
+| 🚿 **Volume Douche** | L | Volume brut de la douche en cours. |
+| 💧 **Volume Douche Confort** | L | Volume utilisé une fois la température de confort atteinte, pour la douche en cours. |
+| 💧 **Volume Douche Confort Cumulé** | L | Cumul historique du volume utilisé une fois la température de confort atteinte. |
+| 💧 **Volume Douche Cumulé** | L | Volume total cumulé depuis l'installation. |
+| ❄️ **Volume Perdu (Eau Froide)** | L | Volume perdu avant d'atteindre la température de confort, pour la douche en cours. |
+| ❄️ **Volume Perdu Cumulé** | L | Cumul historique du volume perdu en eau froide. |
+| 🔄 **Synchro Mode Confort** | Interrupteur | Active la remise à zéro automatique dès le confort atteint. |
+| 🌡️ **Température de confort minimum** | Number (°C) | Seuil de confort réglable (0 - 50 °C). |
+| 📋 **Configuration en attente** | Statut | Réglage(s) en attente d'envoi à l'appareil (Aucune, Savonnage, Seuils, Couleurs, ou combinaisons). |
+| 💨 **Débit** | L/min | Débit d'eau instantané. |
 | 🧴 **Durée Maximale de Savonnage** | s | Temps de savonnage maximum actuellement configuré, lu sur l'appareil. |
-| 🟢🔵🩷🔴 **Seuil 1 à 4** | L | Les 4 paliers de litres configurés sur l'appareil, avec leur couleur en attribut. |
 | 🔵 **État Bluetooth** | Statut | Eau Coupée / Connexion / Connecté / Erreur / Envoi Configuration / Configuration Appliquée / Échec / Redémarrage de l'appareil. |
-| 📋 **Configuration en Attente** | Statut | Réglage(s) en attente d'envoi à l'appareil (Aucune, Savonnage, Seuils, Couleurs, ou combinaisons). |
+| 🟢🔵🩷🔴 **Seuil 1 à 4** | L | Les 4 paliers de litres configurés sur l'appareil, avec leur couleur en attribut. |
 | 📶 **Signal Bluetooth** | dBm | Force du signal Bluetooth reçu en temps réel. |
 | 🔧 **Version Firmware / Hardware / Identifiant Unique** | Diagnostic | Informations techniques de l'appareil. |
-| 🌡️ **Température de Confort Minimum** | Number (°C) | Seuil de confort réglable (0 - 50 °C). |
-| 🔄 **Synchro Mode Confort** | Interrupteur | Active la remise à zéro automatique dès le confort atteint. |
-| 🔘 **Douche Terminée** | Bouton | Termine manuellement le comptage de la douche en cours. |
 
 ---
 
