@@ -137,7 +137,7 @@ Copiez le dossier `custom_components/hydrao_custom` dans le dossier `custom_comp
 
 ### ⚙️ Options
 Une fois l'appareil ajouté, cliquez sur **Configurer** ⚙️ pour :
-* Ajuster la Température de Confort Minimum, le Temps de Savonnage Maximum et la Synchro Mode Confort.
+* Ajuster la Température de confort minimum, la Durée maximale de Savonnage et la Synchro Mode Confort.
 * Modifier les 4 seuils de litres et leurs couleurs (Uniquement une fois une première connexion établie — faites couler l'eau pour réveiller l'appareil).
 * Réinitialiser aux valeurs d'usine en un clic.
 
