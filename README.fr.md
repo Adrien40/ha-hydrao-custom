@@ -81,7 +81,7 @@ Cette intégration exploite directement le protocole BLE de votre Hydrao pour un
 * 🔵 **État Bluetooth détaillé** : Eau Coupée, Connexion, Connecté, Erreur, Envoi de Configuration, Configuration Appliquée, Échec, ou Redémarrage de l'appareil.
 * 📋 **Configuration en Attente** : Indique en un coup d'œil si des réglages (seuils, couleurs, temps de savonnage) n'ont pas encore pu être envoyés à l'appareil.
 * 📶 **Signal Bluetooth en direct** via écoute passive, sans solliciter l'appareil ni sa batterie.
-* 🔧 **Diagnostic** : Firmware, Hardware et Identifiant Unique de l'appareil exposés en capteurs de diagnostic.
+* 🔧 **Diagnostic** : Firmware, Hardware et Identifiant Unique de l'appareil exposés au niveau de la fiche appareil.
 * ⚙️ **Configuration 100 % UI** : Découverte automatique Bluetooth ou ajout manuel par adresse MAC, tout se règle depuis l'interface Home Assistant.
 * 🔄 **Réinitialisation aux valeurs d'usine** disponible directement depuis les options.
 
@@ -126,7 +126,8 @@ Copiez le dossier `custom_components/hydrao_custom` dans le dossier `custom_comp
 | 🔵 **État Bluetooth** | Statut | Eau Coupée / Connexion / Connecté / Erreur / Envoi Configuration / Configuration Appliquée / Échec / Redémarrage de l'appareil. |
 | 🟢🔵🩷🔴 **Seuil 1 à 4** | L | Les 4 paliers de litres configurés sur l'appareil, avec leur couleur en attribut. |
 | 📶 **Signal Bluetooth** | dBm | Force du signal Bluetooth reçu en temps réel. |
-| 🔧 **Version Firmware / Hardware / Identifiant Unique** | Diagnostic | Informations techniques de l'appareil. |
+
+ℹ️ *Le Firmware, l'Hardware et l'Identifiant Unique de l'appareil sont exposés par Home Assistant au niveau de la fiche appareil*
 
 ---
 
