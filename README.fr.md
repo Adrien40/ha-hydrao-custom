@@ -122,7 +122,7 @@ Copiez le dossier `custom_components/hydrao_custom` dans le dossier `custom_comp
 | 🌡️ **Température de confort minimum** | Number (°C) | Seuil de confort réglable (0 - 50 °C). |
 | 📋 **Configuration en attente** | Statut | Réglage(s) en attente d'envoi à l'appareil (Aucune, Savonnage, Seuils, Couleurs, ou combinaisons). |
 | 💨 **Débit** | L/min | Débit d'eau instantané. |
-| 🧴 **Durée maximale de savonnage** | s | Durée maximale de savonnage actuellement configuré, lu sur l'appareil. |
+| 🧴 **Durée maximale de savonnage** | s | Durée maximale de savonnage actuellement configurée, lue sur l'appareil. |
 | 🔵 **État Bluetooth** | Statut | Eau Coupée / Connexion / Connecté / Erreur / Envoi Configuration / Configuration Appliquée / Échec / Redémarrage de l'appareil. |
 | 🟢🔵🩷🔴 **Seuil 1 à 4** | L | Les 4 paliers de litres configurés sur l'appareil, avec leur couleur en attribut. |
 | 📶 **Signal Bluetooth** | dBm | Force du signal Bluetooth reçu en temps réel. |
