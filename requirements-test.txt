@@ -1,0 +1,19 @@
+# Test-only dependencies for the Hydrao Custom integration.
+#
+# Install into a virtualenv, e.g.:
+#   python3 -m venv .venv
+#   .venv/bin/pip install -r requirements-test.txt
+#   .venv/bin/python -m pytest tests/ -v
+#
+# homeassistant is pinned to 2025.1.4 here because that's the newest
+# release available through this sandbox's package mirror at the time of
+# writing. If you're running against a more recent Home Assistant version
+# locally, you likely won't need the async_clear_advertisement_history
+# compatibility shim in tests/conftest.py (it's a no-op once the real
+# function exists) — feel free to bump the pin.
+homeassistant==2025.1.4
+pyserial==3.5
+
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-homeassistant-custom-component==0.13.205
