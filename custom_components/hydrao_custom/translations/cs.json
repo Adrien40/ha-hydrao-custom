@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ MAC adresa",
           "min_temp_threshold": "Minimální Komfortní Teplota"
+        },
+        "data_description": {
+          "address": "Bluetooth MAC adresa zařízení, například AA:BB:CC:DD:EE:FF. Dvojtečky, pomlčky i mezery jsou povoleny.",
+          "min_temp_threshold": "Voda s touto teplotou nebo vyšší se považuje za příjemnou, chladnější voda se považuje za zbytečně spotřebovanou. Od 0 do 50 °C. Používá pouze Home Assistant, nikdy se neodesílá do zařízení."
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 Chcete přidat zařízení **{name}** ({address})?\n\n✅ Nyní můžete nastavit **Minimální Komfortní Teplotu**.\n\n⏳ **Maximální Dobu Mydlení** a Prahové hodnoty bude možné číst a upravovat až po prvním připojení.\n\n💧 Nezapomeňte pustit vodu, abyste zařízení probudili a získali přístup k těmto nastavením!",
         "data": {
           "min_temp_threshold": "Minimální Komfortní Teplota"
+        },
+        "data_description": {
+          "min_temp_threshold": "Voda s touto teplotou nebo vyšší se považuje za příjemnou, chladnější voda se považuje za zbytečně spotřebovanou. Od 0 do 50 °C. Používá pouze Home Assistant, nikdy se neodesílá do zařízení."
         }
       }
     },
@@ -158,6 +165,12 @@
           "thresholds_colors": "Prahové hodnoty, Barvy",
           "soaping_thresholds_colors": "Doba Mydlení, Prahové hodnoty, Barvy"
         }
+      },
+      "shower_duration_cold": {
+        "name": "Doba sprchování studenou vodou"
+      },
+      "time_to_comfort": {
+        "name": "Doba do dosažení komfortní teploty"
       }
     },
     "switch": {

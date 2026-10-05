@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ MAC adresa",
           "min_temp_threshold": "Minimalna Ugodna Temperatura"
+        },
+        "data_description": {
+          "address": "Bluetooth MAC adresa uređaja, na primjer AA:BB:CC:DD:EE:FF. Dopuštene su dvotočke, crtice i razmaci.",
+          "min_temp_threshold": "Voda na ovoj temperaturi ili višoj smatra se ugodnom, a hladnija voda smatra se potrošenom uzalud. Od 0 do 50 °C. Koristi je samo Home Assistant i nikada se ne šalje uređaju."
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 Želite li dodati **{name}** ({address})?\n\n✅ Sada možete postaviti **Minimalnu Ugodnu Temperaturu**.\n\n⏳ **Maksimalno Vrijeme Sapunanja** i Pragovi moći će se očitati i izmijeniti tek nakon prvog povezivanja.\n\n💧 Ne zaboravite pustiti vodu kako biste probudili uređaj i pristupili ovim postavkama!",
         "data": {
           "min_temp_threshold": "Minimalna Ugodna Temperatura"
+        },
+        "data_description": {
+          "min_temp_threshold": "Voda na ovoj temperaturi ili višoj smatra se ugodnom, a hladnija voda smatra se potrošenom uzalud. Od 0 do 50 °C. Koristi je samo Home Assistant i nikada se ne šalje uređaju."
         }
       }
     },
@@ -158,6 +165,12 @@
           "thresholds_colors": "Pragovi, Boje",
           "soaping_thresholds_colors": "Vrijeme Sapunanja, Pragovi, Boje"
         }
+      },
+      "shower_duration_cold": {
+        "name": "Trajanje tuširanja hladnom vodom"
+      },
+      "time_to_comfort": {
+        "name": "Vrijeme do ugodne temperature"
       }
     },
     "switch": {

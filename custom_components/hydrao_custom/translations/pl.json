@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ Adres MAC",
           "min_temp_threshold": "Minimalna Temperatura Komfortu"
+        },
+        "data_description": {
+          "address": "Adres MAC Bluetooth urządzenia, na przykład AA:BB:CC:DD:EE:FF. Dwukropki, myślniki i spacje są akceptowane.",
+          "min_temp_threshold": "Woda o tej temperaturze lub wyższej jest uznawana za komfortową, a chłodniejsza za zmarnowaną. Od 0 do 50 °C. Używane tylko przez Home Assistant i nigdy nie wysyłane do urządzenia."
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 Czy chcesz dodać **{name}** ({address})?\n\n✅ Możesz od razu ustawić **Minimalną Temperaturę Komfortu**.\n\n⏳ **Maksymalny Czas Namydlania** oraz Progi będą mogły zostać odczytane i zmienione dopiero po pierwszym połączeniu.\n\n💧 Pamiętaj, aby puścić wodę, żeby wybudzić urządzenie i uzyskać dostęp do tych ustawień!",
         "data": {
           "min_temp_threshold": "Minimalna Temperatura Komfortu"
+        },
+        "data_description": {
+          "min_temp_threshold": "Woda o tej temperaturze lub wyższej jest uznawana za komfortową, a chłodniejsza za zmarnowaną. Od 0 do 50 °C. Używane tylko przez Home Assistant i nigdy nie wysyłane do urządzenia."
         }
       }
     },
@@ -158,6 +165,12 @@
           "thresholds_colors": "Progi, Kolory",
           "soaping_thresholds_colors": "Czas Namydlania, Progi, Kolory"
         }
+      },
+      "shower_duration_cold": {
+        "name": "Czas trwania prysznica z zimną wodą"
+      },
+      "time_to_comfort": {
+        "name": "Czas do osiągnięcia temperatury komfortu"
       }
     },
     "switch": {

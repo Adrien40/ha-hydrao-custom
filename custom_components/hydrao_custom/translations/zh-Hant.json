@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ MAC 位址",
           "min_temp_threshold": "最低舒適溫度"
+        },
+        "data_description": {
+          "address": "裝置的藍牙 MAC 位址，例如 AA:BB:CC:DD:EE:FF。可使用冒號、連字號和空格。",
+          "min_temp_threshold": "達到或高於此溫度的水視為舒適，低於此溫度的水視為浪費。範圍為 0 至 50 °C。僅由 Home Assistant 使用，不會傳送到裝置。"
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 是否要新增 **{name}**（{address}）？\n\n✅ 您現在可以設定**最低舒適溫度**。\n\n⏳ **最長抹皂時間**與門檻值只有在首次連線後才能讀取與修改。\n\n💧 請記得放水以喚醒裝置並存取這些設定！",
         "data": {
           "min_temp_threshold": "最低舒適溫度"
+        },
+        "data_description": {
+          "min_temp_threshold": "達到或高於此溫度的水視為舒適，低於此溫度的水視為浪費。範圍為 0 至 50 °C。僅由 Home Assistant 使用，不會傳送到裝置。"
         }
       }
     },
@@ -158,6 +165,12 @@
           "thresholds_colors": "門檻值、顏色",
           "soaping_thresholds_colors": "抹皂時間、門檻值、顏色"
         }
+      },
+      "shower_duration_cold": {
+        "name": "冷水淋浴時長"
+      },
+      "time_to_comfort": {
+        "name": "達到舒適溫度所需時間"
       }
     },
     "switch": {

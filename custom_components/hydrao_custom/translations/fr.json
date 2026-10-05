@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ Adresse MAC",
           "min_temp_threshold": "Température de confort minimum"
+        },
+        "data_description": {
+          "address": "Adresse MAC Bluetooth de l'appareil, par exemple AA:BB:CC:DD:EE:FF. Les deux-points, tirets et espaces sont acceptés.",
+          "min_temp_threshold": "L'eau à cette température ou au-dessus compte comme confortable, en dessous elle compte comme perdue. Entre 0 et 50 °C. Utilisée uniquement par Home Assistant, jamais envoyée à l'appareil."
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 Voulez-vous ajouter **{name}** ({address}) ?\n\n✅ Vous pouvez régler dès maintenant la **Température de confort minimum**.\n\n⏳ La **Durée maximale de savonnage** et les Seuils ne pourront être lus et modifiés qu'après la première connexion.\n\n💧 Pensez à faire couler l'eau pour réveiller l'appareil et accéder à ces réglages !",
         "data": {
           "min_temp_threshold": "Température de confort minimum"
+        },
+        "data_description": {
+          "min_temp_threshold": "L'eau à cette température ou au-dessus compte comme confortable, en dessous elle compte comme perdue. Entre 0 et 50 °C. Utilisée uniquement par Home Assistant, jamais envoyée à l'appareil."
         }
       }
     },
@@ -142,6 +149,12 @@
       },
       "shower_duration_comfort": {
         "name": "Durée Douche Confort"
+      },
+      "shower_duration_cold": {
+        "name": "Durée Douche Eau Froide"
+      },
+      "time_to_comfort": {
+        "name": "Durée avant Temp. Confort"
       },
       "wasted_volume_total": {
         "name": "Volume Perdu Cumulé"

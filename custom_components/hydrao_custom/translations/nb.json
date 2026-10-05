@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ MAC-adresse",
           "min_temp_threshold": "Minimum Komforttemperatur"
+        },
+        "data_description": {
+          "address": "Enhetens Bluetooth MAC-adresse, for eksempel AA:BB:CC:DD:EE:FF. Kolon, bindestrek og mellomrom godtas.",
+          "min_temp_threshold": "Vann ved eller over denne temperaturen regnes som behagelig, vann under regnes som bortkastet. Mellom 0 og 50 °C. Brukes bare av Home Assistant og sendes aldri til enheten."
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 Vil du legge til **{name}** ({address})?\n\n✅ Du kan stille inn **Minimum Komforttemperatur** nå.\n\n⏳ **Maksimal Innsåpingstid** og Terskelverdiene kan først leses og endres etter første tilkobling.\n\n💧 Husk å la vannet renne for å vekke enheten og få tilgang til disse innstillingene!",
         "data": {
           "min_temp_threshold": "Minimum Komforttemperatur"
+        },
+        "data_description": {
+          "min_temp_threshold": "Vann ved eller over denne temperaturen regnes som behagelig, vann under regnes som bortkastet. Mellom 0 og 50 °C. Brukes bare av Home Assistant og sendes aldri til enheten."
         }
       }
     },
@@ -158,6 +165,12 @@
           "thresholds_colors": "Terskler, Farger",
           "soaping_thresholds_colors": "Innsåpingstid, Terskler, Farger"
         }
+      },
+      "shower_duration_cold": {
+        "name": "Dusjvarighet med kaldt vann"
+      },
+      "time_to_comfort": {
+        "name": "Tid til komforttemperatur"
       }
     },
     "switch": {

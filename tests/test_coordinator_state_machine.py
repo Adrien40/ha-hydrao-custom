@@ -16,6 +16,8 @@ import asyncio
 import time
 from unittest.mock import AsyncMock
 
+from helpers import make_frames
+
 from custom_components.hydrao_custom.const import (
     BT_STATUS_ERROR,
     BT_STATUS_REBOOTING,
@@ -23,31 +25,6 @@ from custom_components.hydrao_custom.const import (
     BT_STATUS_WAITING,
     MAX_NEW_SHOWER_ATTEMPTS,
 )
-
-
-def _u16le(value: int) -> tuple[int, int]:
-    """Split a 16-bit value into (low_byte, high_byte), little-endian."""
-    return value & 0xFF, (value >> 8) & 0xFF
-
-
-def make_frames(
-    total: int, shower: int, duration_ticks: int, temp_c: float
-) -> tuple[bytearray, bytearray, bytearray]:
-    """Build (vol_data, dur_data, temp_data) BLE frames as the device would
-    send them, from human-friendly values."""
-    t_lo, t_hi = _u16le(total)
-    s_lo, s_hi = _u16le(shower)
-    vol_data = bytearray([t_lo, t_hi, s_lo, s_hi])
-
-    d_lo, d_hi = _u16le(duration_ticks)
-    dur_data = bytearray([d_lo, d_hi])
-
-    temp_ticks = round(temp_c * 2)
-    tm_lo, tm_hi = _u16le(temp_ticks)
-    temp_data = bytearray([tm_lo, tm_hi])
-
-    return vol_data, dur_data, temp_data
-
 
 # ---------------------------------------------------------------------------
 # Live data processing / session detection
@@ -74,20 +51,25 @@ async def test_first_data_point_starts_a_new_session_below_comfort_temp(coordina
 async def test_incremental_reading_above_comfort_temp_counts_as_comfort(coordinator):
     """Once a session is running, only the delta since the last reading is
     counted, and water above the comfort threshold counts as comfort, not
-    wasted."""
+    wasted.
+
+    Both readings are above the threshold on purpose: an interval that
+    *crosses* the threshold is split between cold and comfort (see
+    test_durations.py), it is no longer attributed entirely to the
+    temperature of the latest reading.
+    """
     coordinator.min_temp_threshold = 33.0
 
-    v1, d1, t1 = make_frames(total=100, shower=50, duration_ticks=3000, temp_c=20.0)
+    v1, d1, t1 = make_frames(total=100, shower=50, duration_ticks=3000, temp_c=35.0)
     coordinator._process_live_data(v1, d1, t1, None)
 
-    v2, d2, t2 = make_frames(total=150, shower=80, duration_ticks=4500, temp_c=35.0)
+    v2, d2, t2 = make_frames(total=150, shower=80, duration_ticks=4500, temp_c=36.0)
     coordinator._process_live_data(v2, d2, t2, None)
 
-    # delta_vol = 80 - 50 = 30, all of it above threshold this time
-    assert coordinator.session_shower_volume_comfort == 30.0
-    assert coordinator.lifetime_shower_volume_comfort_total == 30.0
-    # wasted volume from the first (cold) reading is untouched
-    assert coordinator.session_wasted_volume == 50.0
+    # first reading: whole raw volume (50); second: only the delta (80 - 50)
+    assert coordinator.session_shower_volume_comfort == 80.0
+    assert coordinator.lifetime_shower_volume_comfort_total == 80.0
+    assert coordinator.session_wasted_volume == 0.0
 
 
 async def test_shower_raw_drop_is_treated_as_device_side_reset(coordinator):

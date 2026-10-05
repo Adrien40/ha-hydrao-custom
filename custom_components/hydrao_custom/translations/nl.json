@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ MAC-adres",
           "min_temp_threshold": "Minimale Comforttemperatuur"
+        },
+        "data_description": {
+          "address": "Bluetooth MAC-adres van het apparaat, bijvoorbeeld AA:BB:CC:DD:EE:FF. Dubbele punten, streepjes en spaties worden geaccepteerd.",
+          "min_temp_threshold": "Water op of boven deze temperatuur geldt als comfortabel, water eronder geldt als verspild. Tussen 0 en 50 °C. Wordt alleen door Home Assistant gebruikt en nooit naar het apparaat gestuurd."
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 Wil je **{name}** ({address}) toevoegen?\n\n✅ Je kunt nu de **Minimale Comforttemperatuur** instellen.\n\n⏳ De **Maximale Inzeeptijd** en de Drempels kunnen pas na de eerste verbinding worden gelezen en gewijzigd.\n\n💧 Vergeet niet het water te laten lopen om het apparaat te activeren en toegang te krijgen tot deze instellingen!",
         "data": {
           "min_temp_threshold": "Minimale Comforttemperatuur"
+        },
+        "data_description": {
+          "min_temp_threshold": "Water op of boven deze temperatuur geldt als comfortabel, water eronder geldt als verspild. Tussen 0 en 50 °C. Wordt alleen door Home Assistant gebruikt en nooit naar het apparaat gestuurd."
         }
       }
     },
@@ -158,6 +165,12 @@
           "thresholds_colors": "Drempels, Kleuren",
           "soaping_thresholds_colors": "Inzeeptijd, Drempels, Kleuren"
         }
+      },
+      "shower_duration_cold": {
+        "name": "Douchetijd met koud water"
+      },
+      "time_to_comfort": {
+        "name": "Tijd tot comforttemperatuur"
       }
     },
     "switch": {

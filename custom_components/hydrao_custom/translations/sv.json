@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ MAC-adress",
           "min_temp_threshold": "Lägsta Komforttemperatur"
+        },
+        "data_description": {
+          "address": "Enhetens Bluetooth MAC-adress, till exempel AA:BB:CC:DD:EE:FF. Kolon, bindestreck och mellanslag accepteras.",
+          "min_temp_threshold": "Vatten vid eller över denna temperatur räknas som behagligt, vatten under den räknas som slösat. Mellan 0 och 50 °C. Används bara av Home Assistant och skickas aldrig till enheten."
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 Vill du lägga till **{name}** ({address})?\n\n✅ Du kan ställa in **Lägsta Komforttemperatur** nu.\n\n⏳ **Maximal Tvåltid** och Tröskelvärdena kan endast läsas och ändras efter första anslutningen.\n\n💧 Kom ihåg att spola vatten för att väcka enheten och komma åt dessa inställningar!",
         "data": {
           "min_temp_threshold": "Lägsta Komforttemperatur"
+        },
+        "data_description": {
+          "min_temp_threshold": "Vatten vid eller över denna temperatur räknas som behagligt, vatten under den räknas som slösat. Mellan 0 och 50 °C. Används bara av Home Assistant och skickas aldrig till enheten."
         }
       }
     },
@@ -158,6 +165,12 @@
           "thresholds_colors": "Tröskelvärden, Färger",
           "soaping_thresholds_colors": "Tvåltid, Tröskelvärden, Färger"
         }
+      },
+      "shower_duration_cold": {
+        "name": "Duschtid med kallt vatten"
+      },
+      "time_to_comfort": {
+        "name": "Tid till komforttemperatur"
       }
     },
     "switch": {

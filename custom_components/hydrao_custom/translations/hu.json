@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ MAC-cím",
           "min_temp_threshold": "Minimális Komforthőmérséklet"
+        },
+        "data_description": {
+          "address": "Az eszköz Bluetooth MAC-címe, például AA:BB:CC:DD:EE:FF. Kettőspont, kötőjel és szóköz is elfogadott.",
+          "min_temp_threshold": "Az ennél a hőmérsékletnél melegebb víz kényelmesnek számít, az ennél hidegebb víz elpazarolt. 0 és 50 °C között. Csak a Home Assistant használja, az eszközre soha nem kerül elküldésre."
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 Szeretné hozzáadni a következőt: **{name}** ({address})?\n\n✅ A **Minimális Komforthőmérsékletet** most is beállíthatja.\n\n⏳ A **Maximális Szappanozási Idő** és a Küszöbértékek csak az első csatlakozás után olvashatók és módosíthatók.\n\n💧 Ne felejtse el megnyitni a vizet, hogy felébressze az eszközt, és hozzáférjen ezekhez a beállításokhoz!",
         "data": {
           "min_temp_threshold": "Minimális Komforthőmérséklet"
+        },
+        "data_description": {
+          "min_temp_threshold": "Az ennél a hőmérsékletnél melegebb víz kényelmesnek számít, az ennél hidegebb víz elpazarolt. 0 és 50 °C között. Csak a Home Assistant használja, az eszközre soha nem kerül elküldésre."
         }
       }
     },
@@ -158,6 +165,12 @@
           "thresholds_colors": "Küszöbértékek, Színek",
           "soaping_thresholds_colors": "Szappanozási Idő, Küszöbértékek, Színek"
         }
+      },
+      "shower_duration_cold": {
+        "name": "Hideg vizes zuhanyzás időtartama"
+      },
+      "time_to_comfort": {
+        "name": "Idő a komfort hőmérsékletig"
       }
     },
     "switch": {

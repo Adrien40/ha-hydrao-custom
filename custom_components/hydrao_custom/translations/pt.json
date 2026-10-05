@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ Endereço MAC",
           "min_temp_threshold": "Temperatura de Conforto Mínima"
+        },
+        "data_description": {
+          "address": "Endereço MAC Bluetooth do dispositivo, por exemplo AA:BB:CC:DD:EE:FF. Dois pontos, hífenes e espaços são aceites.",
+          "min_temp_threshold": "A água a esta temperatura ou acima é considerada confortável; abaixo dela é considerada desperdiçada. Entre 0 e 50 °C. Usado apenas pelo Home Assistant e nunca enviado para o dispositivo."
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 Deseja adicionar **{name}** ({address})?\n\n✅ Pode definir já a **Temperatura de Conforto Mínima**.\n\n⏳ O **Tempo Máximo de Ensaboamento** e os Limiares só poderão ser lidos e alterados após a primeira ligação.\n\n💧 Não se esqueça de deixar correr a água para ativar o dispositivo e aceder a estas definições!",
         "data": {
           "min_temp_threshold": "Temperatura de Conforto Mínima"
+        },
+        "data_description": {
+          "min_temp_threshold": "A água a esta temperatura ou acima é considerada confortável; abaixo dela é considerada desperdiçada. Entre 0 e 50 °C. Usado apenas pelo Home Assistant e nunca enviado para o dispositivo."
         }
       }
     },
@@ -158,6 +165,12 @@
           "thresholds_colors": "Limiares, Cores",
           "soaping_thresholds_colors": "Tempo de Ensaboamento, Limiares, Cores"
         }
+      },
+      "shower_duration_cold": {
+        "name": "Duração do duche com água fria"
+      },
+      "time_to_comfort": {
+        "name": "Tempo até à temperatura de conforto"
       }
     },
     "switch": {

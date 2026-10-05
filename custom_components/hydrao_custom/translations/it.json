@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ Indirizzo MAC",
           "min_temp_threshold": "Temperatura di Comfort Minima"
+        },
+        "data_description": {
+          "address": "Indirizzo MAC Bluetooth del dispositivo, ad esempio AA:BB:CC:DD:EE:FF. Sono accettati due punti, trattini e spazi.",
+          "min_temp_threshold": "L'acqua a questa temperatura o superiore è considerata confortevole, quella più fredda è considerata sprecata. Tra 0 e 50 °C. Usata solo da Home Assistant, mai inviata al dispositivo."
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 Vuoi aggiungere **{name}** ({address})?\n\n✅ Puoi impostare subito la **Temperatura di Comfort Minima**.\n\n⏳ Il **Tempo Massimo di Insaponatura** e le Soglie potranno essere letti e modificati solo dopo la prima connessione.\n\n💧 Ricorda di far scorrere l'acqua per attivare il dispositivo e accedere a queste impostazioni!",
         "data": {
           "min_temp_threshold": "Temperatura di Comfort Minima"
+        },
+        "data_description": {
+          "min_temp_threshold": "L'acqua a questa temperatura o superiore è considerata confortevole, quella più fredda è considerata sprecata. Tra 0 e 50 °C. Usata solo da Home Assistant, mai inviata al dispositivo."
         }
       }
     },
@@ -158,6 +165,12 @@
           "thresholds_colors": "Soglie, Colori",
           "soaping_thresholds_colors": "Tempo di Insaponatura, Soglie, Colori"
         }
+      },
+      "shower_duration_cold": {
+        "name": "Durata della doccia con acqua fredda"
+      },
+      "time_to_comfort": {
+        "name": "Tempo per raggiungere la temperatura di comfort"
       }
     },
     "switch": {

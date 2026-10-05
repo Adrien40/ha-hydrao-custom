@@ -4,7 +4,8 @@
 import asyncio
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from bleak import BleakClient
 from bleak.exc import BleakError
@@ -21,6 +22,7 @@ from homeassistant.components.bluetooth import (
 )
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import (
     CONNECTION_BLUETOOTH,
     DeviceInfo,
@@ -28,6 +30,7 @@ from homeassistant.helpers.device_registry import (
 from homeassistant.helpers.device_registry import (
     async_get as async_get_device_registry,
 )
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -52,10 +55,28 @@ from .const import (
     DEFAULT_MIN_TEMP_THRESHOLD,
     DEFAULT_SOAPING_DURATION,
     DOMAIN,
+    DURATION_TICKS_PER_SECOND,
+    FLOW_RAW_CONSTANT,
+    ISSUE_TRACKER_URL,
     MAX_NEW_SHOWER_ATTEMPTS,
+    MAX_THRESHOLD_VALUE,
+    MAX_WATER_TEMP,
+    MIN_THRESHOLD_VALUE,
+    MIN_WATER_TEMP,
+    STORAGE_SAVE_DELAY,
+    STORAGE_VERSION,
+    TEMPERATURE_RAW_UNITS_PER_DEGREE,
     HydraoConfigEntry,
 )
-from .util import thresholds_strictly_increasing
+from .util import (
+    clamp_soaping_duration,
+    comfort_fraction,
+    duration_ticks_delta,
+    is_plausible_water_temp,
+    storage_key,
+    thresholds_fit_in_byte,
+    thresholds_strictly_increasing,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -94,7 +115,7 @@ _BLE_TRANSIENT_ERRORS = (BleakError, TimeoutError, OSError, EOFError)
 ADVERTISEMENT_GRACE_PERIOD = 1.0
 
 
-class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
+class HydraoDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinator for Hydrao BLE device.
 
     This coordinator does not use the standard polling interval (update_interval=None)
@@ -102,6 +123,8 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
     (async_run_loop) to process real-time notifications and spontaneous connections
     when the water flows.
     """
+
+    config_entry: HydraoConfigEntry
 
     def __init__(self, hass: HomeAssistant, entry: HydraoConfigEntry) -> None:
         self.address = entry.data[CONF_ADDRESS]
@@ -118,13 +141,13 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=None,
         )
 
-        self.static_data = {
+        self.static_data: dict[str, Any] = {
             "firmware": entry.data.get("firmware", "unknown"),
             "hardware": entry.data.get("hardware", "unknown"),
             "device_id": entry.data.get("device_id", "unknown"),
         }
 
-        self.last_valid_data = {"bluetooth_status": BT_STATUS_WAITING}
+        self.last_valid_data: dict[str, Any] = {"bluetooth_status": BT_STATUS_WAITING}
         self._raw_cfg: bytearray | None = None
         self._raw_cfg_lock = asyncio.Lock()
 
@@ -146,23 +169,20 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
         self._last_processed_options = dict(opts) if entry.options else {}
 
         if "soaping_duration" in opts:
-            self.static_data["soaping_duration"] = int(opts["soaping_duration"])
+            self.static_data["soaping_duration"] = clamp_soaping_duration(
+                int(opts["soaping_duration"])
+            )
 
-        if "threshold_1" in opts:
-            self.static_data["thresholds"] = [
-                int(opts["threshold_1"]),
-                int(opts["threshold_2"]),
-                int(opts["threshold_3"]),
-                int(opts["threshold_4"]),
-            ]
+        # Only trust the stored thresholds / colors when all four are there:
+        # a partial set must not stop the integration from loading. Whatever
+        # is missing is read from the device on the first connection.
+        threshold_keys = [f"threshold_{i}" for i in range(1, 5)]
+        if all(key in opts for key in threshold_keys):
+            self.static_data["thresholds"] = [int(opts[key]) for key in threshold_keys]
 
-        if "threshold_1_color" in opts:
-            self.static_data["colors"] = [
-                tuple(opts["threshold_1_color"]),
-                tuple(opts["threshold_2_color"]),
-                tuple(opts["threshold_3_color"]),
-                tuple(opts["threshold_4_color"]),
-            ]
+        color_keys = [f"threshold_{i}_color" for i in range(1, 5)]
+        if all(key in opts for key in color_keys):
+            self.static_data["colors"] = [tuple(opts[key]) for key in color_keys]
 
         self.last_seen_time = 0.0
         self.force_reset_flag = False
@@ -195,15 +215,46 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
         # ADVERTISEMENT_GRACE_PERIOD above for the reasoning.
         self._last_advertisement_time = 0.0
 
+        # All durations are in seconds.
         self.session_wasted_volume = 0.0
         self.session_shower_duration_comfort = 0.0
+        self.session_shower_duration_cold = 0.0
         self.session_shower_volume_comfort = 0.0
+        # Total duration of the session, accumulated from successive
+        # deltas of the device's uint16 tick counter (so it keeps counting
+        # correctly past the counter's wrap-around).
+        self.session_duration_total = 0.0
+        # Seconds of cold water before comfort was first reached in the
+        # current session; None while not reached, or when it cannot be
+        # known (the very first reading of a session was already warm).
+        self.session_time_to_comfort: float | None = None
+        self._session_comfort_seen = False
 
         self.lifetime_wasted_volume_total = 0.0
         self.lifetime_shower_volume_comfort_total = 0.0
+        # The totals live in their own file. `totals_loaded_from_store` tells
+        # the total sensors whether it already holds them: when it does, the
+        # value those sensors restore from their last state is ignored. When it
+        # does not (first start after an upgrade from 1.0.0, which kept the
+        # totals only in the sensors' state), that restored value is adopted
+        # once and written to the file: the migration.
+        self._store: Store[dict[str, float]] = Store(
+            hass, STORAGE_VERSION, storage_key(entry.entry_id)
+        )
+        self.totals_loaded_from_store = False
+        self._totals_save_scheduled = False
 
         self._last_shower_raw = 0.0
-        self._last_duration_raw = 0.0
+        self._last_duration_ticks = 0
+        # Temperature of the previous reading in the current session, used
+        # to split an interval that straddles the comfort threshold.
+        self._last_temp_raw: float | None = None
+
+        # The last frames received from the device, as hex, kept for the
+        # diagnostics file: they are what lets us tell how a device revision
+        # encodes its values when the decoded figures look wrong.
+        self.last_raw_frames: dict[str, str | None] = {}
+        self._implausible_temperature_warned = False
 
         self._thresholds_read_for_session = False
         self._thresholds_need_reread = False
@@ -245,7 +296,11 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
         """
         last_info = async_last_service_info(self.hass, self.address, connectable=False)
         if last_info:
-            self._last_advertisement_time = time.monotonic()
+            # Use the advertisement's own timestamp (same monotonic clock),
+            # not "now": a cached advertisement can be minutes old, and
+            # counting it as fresh would trigger a pointless connection
+            # attempt at startup.
+            self._last_advertisement_time = last_info.time
 
         @callback
         def _async_on_advertisement(
@@ -277,7 +332,7 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
             self.last_valid_data["bluetooth_status"] = status
             self.async_set_updated_data(self.last_valid_data)
 
-    def async_update_options(self, options: dict) -> None:
+    def async_update_options(self, options: Mapping[str, Any]) -> None:
         if dict(options) == self._last_processed_options:
             return
         self._last_processed_options = dict(options)
@@ -291,7 +346,7 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
 
         self.async_update_listeners()
 
-    def _queue_pending_writes_from_options(self, options: dict) -> None:
+    def _queue_pending_writes_from_options(self, options: Mapping[str, Any]) -> None:
         """Compare the device's known config against `options` and queue
         whatever differs for the next write. Called both when options
         actually change (async_update_options) and after every fresh
@@ -301,7 +356,14 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
         """
         if "soaping_duration" in options:
             live_soaping = self.static_data.get("soaping_duration")
-            new_soaping = int(options["soaping_duration"])
+            requested_soaping = int(options["soaping_duration"])
+            new_soaping = clamp_soaping_duration(requested_soaping)
+            if new_soaping != requested_soaping:
+                _LOGGER.warning(
+                    "Soaping duration %ds is out of range, using %ds instead",
+                    requested_soaping,
+                    new_soaping,
+                )
             if live_soaping is None or new_soaping != live_soaping:
                 self.pending_soaping_duration = new_soaping
 
@@ -338,6 +400,14 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
                 "Refusing to sync thresholds %s to the device: they must "
                 "be strictly increasing (Threshold 1 < 2 < 3 < 4).",
                 new_thresh,
+            )
+        elif not thresholds_fit_in_byte(new_thresh):
+            _LOGGER.warning(
+                "Refusing to sync thresholds %s to the device: each one must "
+                "be between %d and %d.",
+                new_thresh,
+                MIN_THRESHOLD_VALUE,
+                MAX_THRESHOLD_VALUE,
             )
         elif live_thresholds is None or live_thresholds != new_thresh:
             self.pending_thresholds = new_thresh
@@ -512,8 +582,9 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
                 return False
 
     @staticmethod
-    def _duration_raw_seconds(dur_data: bytearray) -> float:
-        return ((dur_data[1] << 8) | dur_data[0]) / 50.0
+    def _duration_raw_ticks(dur_data: bytearray) -> int:
+        """Return the device's raw duration counter (uint16, 1/50 s ticks)."""
+        return (dur_data[1] << 8) | dur_data[0]
 
     async def _handle_pending_new_shower(self, client: BleakClient) -> None:
         if not self.pending_new_shower:
@@ -704,137 +775,149 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
                 self.set_bt_status(BT_STATUS_SUCCESS)
             self._new_shower_write_sent = False
 
-            async with client:
-                new_data = dict(self.config_entry.data)
-                entry_needs_update = False
+            new_data = dict(self.config_entry.data)
+            entry_needs_update = False
 
-                if new_data.get("firmware", "unknown") == "unknown":
-                    try:
-                        fw = await client.read_gatt_char(CHAR_FIRMWARE)
-                        new_data["firmware"] = fw.decode(errors="ignore").strip("\x00")
-                        entry_needs_update = True
-                    except _BLE_TRANSIENT_ERRORS as e:
-                        _LOGGER.warning("Could not read Firmware: %s", e)
+            if new_data.get("firmware", "unknown") == "unknown":
+                try:
+                    fw = await client.read_gatt_char(CHAR_FIRMWARE)
+                    new_data["firmware"] = fw.decode(errors="ignore").strip("\x00")
+                    entry_needs_update = True
+                except _BLE_TRANSIENT_ERRORS as e:
+                    _LOGGER.warning("Could not read Firmware: %s", e)
 
-                if new_data.get("hardware", "unknown") == "unknown":
-                    try:
-                        hw = await client.read_gatt_char(CHAR_HARDWARE)
+            if new_data.get("hardware", "unknown") == "unknown":
+                try:
+                    hw = await client.read_gatt_char(CHAR_HARDWARE)
+                    if hw:
                         new_data["hardware"] = str(hw[0])
                         entry_needs_update = True
-                    except _BLE_TRANSIENT_ERRORS as e:
-                        _LOGGER.warning("Could not read Hardware: %s", e)
+                    else:
+                        _LOGGER.warning("Could not read Hardware: empty value")
+                except _BLE_TRANSIENT_ERRORS as e:
+                    _LOGGER.warning("Could not read Hardware: %s", e)
 
-                if new_data.get("device_id", "unknown") == "unknown":
-                    try:
-                        uid = await client.read_gatt_char(CHAR_UNIQUE_ID)
-                        new_data["device_id"] = uid.hex()
-                        entry_needs_update = True
-                    except _BLE_TRANSIENT_ERRORS as e:
-                        _LOGGER.warning("Could not read Unique ID: %s", e)
+            if new_data.get("device_id", "unknown") == "unknown":
+                try:
+                    uid = await client.read_gatt_char(CHAR_UNIQUE_ID)
+                    new_data["device_id"] = uid.hex()
+                    entry_needs_update = True
+                except _BLE_TRANSIENT_ERRORS as e:
+                    _LOGGER.warning("Could not read Unique ID: %s", e)
 
-                if entry_needs_update:
-                    self.hass.config_entries.async_update_entry(
-                        self.config_entry, data=new_data
-                    )
+            if entry_needs_update:
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry, data=new_data
+                )
 
-                    dev_reg = async_get_device_registry(self.hass)
-                    dev_reg.async_get_or_create(
-                        config_entry_id=self.config_entry.entry_id,
-                        identifiers={(DOMAIN, self.address)},
-                        connections={(CONNECTION_BLUETOOTH, self.address)},
-                        manufacturer="Hydrao",
-                        name=self.config_entry.title,
-                        sw_version=new_data.get("firmware", "unknown"),
-                        hw_version=new_data.get("hardware", "unknown"),
-                        serial_number=new_data.get("device_id", "unknown"),
-                    )
+                dev_reg = async_get_device_registry(self.hass)
+                dev_reg.async_get_or_create(
+                    config_entry_id=self.config_entry.entry_id,
+                    identifiers={(DOMAIN, self.address)},
+                    connections={(CONNECTION_BLUETOOTH, self.address)},
+                    manufacturer="Hydrao",
+                    name=self.config_entry.title,
+                    sw_version=new_data.get("firmware", "unknown"),
+                    hw_version=new_data.get("hardware", "unknown"),
+                    serial_number=new_data.get("device_id", "unknown"),
+                )
 
-                self.static_data["firmware"] = new_data.get("firmware", "unknown")
-                self.static_data["hardware"] = new_data.get("hardware", "unknown")
-                self.static_data["device_id"] = new_data.get("device_id", "unknown")
+            self.static_data["firmware"] = new_data.get("firmware", "unknown")
+            self.static_data["hardware"] = new_data.get("hardware", "unknown")
+            self.static_data["device_id"] = new_data.get("device_id", "unknown")
 
-                await self._async_read_thresholds(client)
-                await self._async_read_soaping_duration(client)
+            inline_write_attempts = 0
+            config_write_failed_this_session = False
+            device_config_read = False
 
-                self._queue_pending_writes_from_options(self.config_entry.options)
-                self._sync_device_config_to_ha_options()
+            while client.is_connected:
+                try:
+                    vol_data = await client.read_gatt_char(CHAR_VOLUME_AND_DURATION)
+                    dur_data = await client.read_gatt_char(CHAR_DURATION_RAW)
+                    temp_data = await client.read_gatt_char(CHAR_TEMPERATURE_RAW)
+                except _BLE_TRANSIENT_ERRORS as e:
+                    _LOGGER.debug("Skipping this read cycle: %s", e)
+                    await asyncio.sleep(1)
+                    continue
 
-                inline_write_attempts = 0
-                config_write_failed_this_session = False
+                try:
+                    flow_raw_data = await client.read_gatt_char(CHAR_FLOW_RAW)
+                except _BLE_TRANSIENT_ERRORS:
+                    flow_raw_data = None
 
-                while client.is_connected:
-                    try:
-                        vol_data = await client.read_gatt_char(CHAR_VOLUME_AND_DURATION)
-                        dur_data = await client.read_gatt_char(CHAR_DURATION_RAW)
-                        temp_data = await client.read_gatt_char(CHAR_TEMPERATURE_RAW)
-                    except _BLE_TRANSIENT_ERRORS as e:
-                        _LOGGER.debug("Skipping this read cycle: %s", e)
-                        await asyncio.sleep(1)
-                        continue
+                self._process_live_data(vol_data, dur_data, temp_data, flow_raw_data)
 
-                    try:
-                        flow_raw_data = await client.read_gatt_char(CHAR_FLOW_RAW)
-                    except _BLE_TRANSIENT_ERRORS:
-                        flow_raw_data = None
+                if not device_config_read:
+                    # The device settings are read once the first live
+                    # reading has been taken, not before it: the shower is
+                    # already running, and each read before that first
+                    # reading delays it, which can make the cold phase go
+                    # unseen (see `time_to_comfort`).
+                    device_config_read = True
+                    await self._async_read_thresholds(client)
+                    await self._async_read_soaping_duration(client)
+                    self._queue_pending_writes_from_options(self.config_entry.options)
+                    # This read follows a live reading, which is exactly
+                    # what `_thresholds_need_reread` asks for.
+                    self._thresholds_need_reread = False
+                    self._sync_device_config_to_ha_options()
 
-                    self._process_live_data(
-                        vol_data, dur_data, temp_data, flow_raw_data
-                    )
+                if self._thresholds_need_reread:
+                    self._thresholds_need_reread = False
+                    await self._async_read_thresholds(client)
+                    self._sync_device_config_to_ha_options()
 
-                    if self._thresholds_need_reread:
-                        self._thresholds_need_reread = False
-                        await self._async_read_thresholds(client)
-                        self._sync_device_config_to_ha_options()
+                if self.pending_new_shower:
+                    await self._handle_pending_new_shower(client)
 
-                    if self.pending_new_shower:
-                        await self._handle_pending_new_shower(client)
+                    # If the reboot command was actually sent, break out of the loop
+                    # right away. This closes the connection on HA's side instantly,
+                    # instead of waiting through the OS's ~10s timeout.
+                    if self._new_shower_write_sent:
+                        break
 
-                        # If the reboot command was actually sent, break out of the loop
-                        # right away. This closes the connection on HA's side instantly,
-                        # instead of waiting through the OS's ~10s timeout.
-                        if self._new_shower_write_sent:
-                            break
+                    await asyncio.sleep(1)
+                    continue
 
-                        await asyncio.sleep(1)
-                        continue
+                if not config_write_failed_this_session and (
+                    self.pending_thresholds
+                    or self.pending_colors
+                    or self.pending_soaping_duration is not None
+                ):
+                    success = await self._apply_pending_config_write(client)
 
-                    if not config_write_failed_this_session and (
-                        self.pending_thresholds
-                        or self.pending_colors
-                        or self.pending_soaping_duration is not None
-                    ):
-                        success = await self._apply_pending_config_write(client)
-
-                        if success:
-                            inline_write_attempts = 0
-                            continue
-
-                        inline_write_attempts += 1
-                        if inline_write_attempts < 2:
-                            await asyncio.sleep(1)
-                            continue
-
-                        _LOGGER.error(
-                            "Giving up on pending config write after %d failed "
-                            "attempts this session; will retry automatically "
-                            "the next time the device connects.",
-                            inline_write_attempts,
-                        )
-                        config_write_failed_this_session = True
+                    if success:
                         inline_write_attempts = 0
-                        self.set_bt_status(BT_STATUS_SYNC_FAILED)
+                        continue
 
-                    if (
-                        not config_write_failed_this_session
-                        and not self.pending_thresholds
-                        and not self.pending_colors
-                        and self.pending_soaping_duration is None
-                    ):
-                        self.set_bt_status(BT_STATUS_SUCCESS)
+                    inline_write_attempts += 1
+                    if inline_write_attempts < 2:
+                        await asyncio.sleep(1)
+                        continue
 
-                    await asyncio.sleep(0.3)
+                    _LOGGER.error(
+                        "Giving up on pending config write after %d failed "
+                        "attempts this session; will retry automatically "
+                        "the next time the device connects.",
+                        inline_write_attempts,
+                    )
+                    config_write_failed_this_session = True
+                    inline_write_attempts = 0
+                    self.set_bt_status(BT_STATUS_SYNC_FAILED)
+
+                if (
+                    not config_write_failed_this_session
+                    and not self.pending_thresholds
+                    and not self.pending_colors
+                    and self.pending_soaping_duration is None
+                ):
+                    self.set_bt_status(BT_STATUS_SUCCESS)
+
+                await asyncio.sleep(0.3)
 
         finally:
+            await self._async_close_connection(client)
+
             # The Hydrao advertisement payload is completely static
             # (empty manufacturer_data/service_data/service_uuids), so
             # Home Assistant's Bluetooth manager de-duplicates repeat
@@ -846,6 +929,25 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
             # _last_advertisement_time.
             async_clear_advertisement_history(self.hass, self.address)
 
+    async def _async_close_connection(self, client: BleakClient) -> None:
+        """Close the connection, whatever ended the cycle.
+
+        `establish_connection` returns a client that is already connected, so
+        it is disconnected here. Entering it as a context manager would call
+        `connect()` a second time: stock bleak refuses that, and Home
+        Assistant's wrapper only ignores it, which is not something to rely on.
+
+        A failure to disconnect is only logged. The link is often already gone
+        when the shower stops, and that must neither turn the end of a shower
+        into a connection error nor hide the exception that ended the cycle.
+        """
+        try:
+            await client.disconnect()
+        except _BLE_TRANSIENT_ERRORS as err:
+            _LOGGER.debug("Error while closing the connection: %s", err)
+        else:
+            _LOGGER.debug("Bluetooth connection closed")
+
     def _process_live_data(
         self,
         vol_data: bytearray,
@@ -853,6 +955,8 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
         temp_data: bytearray,
         flow_raw_data: bytearray | None,
     ) -> None:
+        self._record_raw_frames(vol_data, dur_data, temp_data, flow_raw_data)
+
         if len(vol_data) < 4 or len(dur_data) < 2 or len(temp_data) < 2:
             _LOGGER.debug(
                 "Ignoring malformed BLE frame (vol=%d, dur=%d, temp=%d bytes)",
@@ -864,8 +968,18 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
 
         total_raw = (vol_data[1] << 8) | vol_data[0]
         shower_raw = float((vol_data[3] << 8) | vol_data[2])
-        duration_raw = self._duration_raw_seconds(dur_data) / 60.0
-        temp_raw = ((temp_data[1] << 8) | temp_data[0]) / 2.0
+        duration_ticks = self._duration_raw_ticks(dur_data)
+        decoded_temp = (
+            (temp_data[1] << 8) | temp_data[0]
+        ) / TEMPERATURE_RAW_UNITS_PER_DEGREE
+        # None when the reading cannot be a real water temperature: it is
+        # then left out of every cold / comfort computation instead of being
+        # counted as (very) hot water.
+        temperature: float | None = None
+        if is_plausible_water_temp(decoded_temp):
+            temperature = decoded_temp
+        else:
+            self._warn_implausible_temperature(decoded_temp)
 
         # time.monotonic(), not time.time(): last_seen_time is only ever
         # diffed against another later reading of this same clock (see
@@ -889,7 +1003,7 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
             self._preserve_wasted_on_next_reset = False
             self.force_reset_flag = False
             delta_vol = shower_raw
-            delta_dur = duration_raw
+            delta_ticks = duration_ticks
         else:
             if shower_raw < self._last_shower_raw:
                 self._reset_session_state(
@@ -908,31 +1022,77 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
                     self.new_shower_attempts = 0
                     self.set_bt_status(BT_STATUS_SUCCESS)
                 delta_vol = shower_raw
-                delta_dur = duration_raw
+                delta_ticks = duration_ticks
             else:
                 delta_vol = shower_raw - self._last_shower_raw
-                delta_dur = duration_raw - self._last_duration_raw
+                delta_ticks = duration_ticks_delta(
+                    self._last_duration_ticks, duration_ticks
+                )
 
         if self._awaiting_manual_reset_confirmation:
             delta_vol = 0.0
-            delta_dur = 0.0
+            delta_ticks = 0
 
         delta_vol = max(0.0, delta_vol)
-        delta_dur = max(0.0, delta_dur)
+        delta_dur = max(0, delta_ticks) / DURATION_TICKS_PER_SECOND
 
-        if temp_raw < self.min_temp_threshold:
-            self.session_wasted_volume += delta_vol
-            self.lifetime_wasted_volume_total += delta_vol
-        else:
-            self.session_shower_duration_comfort += delta_dur
-            self.session_shower_volume_comfort += delta_vol
-            self.lifetime_shower_volume_comfort_total += delta_vol
+        previous_temp = self._last_temp_raw
+        self.session_duration_total += delta_dur
+
+        if temperature is not None:
+            # Split the interval between comfort and cold according to how
+            # the temperature evolved since the previous reading, instead of
+            # attributing everything to the current reading's temperature.
+            comfort_share = comfort_fraction(
+                previous_temp, temperature, self.min_temp_threshold
+            )
+
+            comfort_vol = delta_vol * comfort_share
+            cold_vol = delta_vol - comfort_vol
+            comfort_dur = delta_dur * comfort_share
+            cold_dur = delta_dur - comfort_dur
+
+            self.session_wasted_volume += cold_vol
+            self.lifetime_wasted_volume_total += cold_vol
+            self.session_shower_duration_cold += cold_dur
+            self.session_shower_volume_comfort += comfort_vol
+            self.lifetime_shower_volume_comfort_total += comfort_vol
+            self.session_shower_duration_comfort += comfort_dur
+
+            if cold_vol > 0.0 or comfort_vol > 0.0:
+                self._async_schedule_totals_save()
+
+            # Comfort is reached on the first reading at or above the
+            # threshold. This is deliberately NOT tested through
+            # `comfort_share > 0`: the probe resolves 0.5 C and the threshold
+            # is set in 0.5 C steps, so a reading landing exactly on the
+            # threshold is common during a gradual warm-up. Interpolating
+            # between the previous reading and that one gives a comfort share
+            # of exactly 0, which would skip this block; the next reading
+            # would then see a previous temperature that is no longer below
+            # the threshold, and the time to comfort would stay unknown for
+            # the whole session.
+            if (
+                temperature >= self.min_temp_threshold
+                and not self._session_comfort_seen
+            ):
+                self._session_comfort_seen = True
+                # Only report a time-to-comfort when we actually watched the
+                # water go from cold to comfortable. If the session's very
+                # first reading was already warm, the cold phase (if any)
+                # happened before we connected and cannot be measured.
+                if (
+                    previous_temp is not None
+                    and previous_temp < self.min_temp_threshold
+                ):
+                    self.session_time_to_comfort = self.session_shower_duration_cold
 
         if (
             self.auto_sync_at_comfort
             and not self._comfort_sync_sent_for_session
             and shower_raw > 0
-            and temp_raw >= self.min_temp_threshold
+            and temperature is not None
+            and temperature >= self.min_temp_threshold
         ):
             self._comfort_sync_sent_for_session = True
 
@@ -943,7 +1103,7 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
         if flow_raw_data and len(flow_raw_data) >= 2:
             raw_v1 = (flow_raw_data[1] << 8) | flow_raw_data[0]
             if raw_v1 > 0:
-                flow_rate = 1800.0 / raw_v1
+                flow_rate = FLOW_RAW_CONSTANT / raw_v1
 
         if delta_vol == 0 and delta_dur == 0:
             flow_rate = 0.0
@@ -953,16 +1113,19 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
             self._thresholds_need_reread = True
 
         self._last_shower_raw = shower_raw
-        self._last_duration_raw = duration_raw
+        self._last_duration_ticks = duration_ticks
+        # A reading that was left out must not serve as the starting point of
+        # the next interval.
+        self._last_temp_raw = temperature
         self.last_seen_time = current_time
 
         new_data = {
             "firmware": self.static_data.get("firmware", "unknown"),
             "hardware": self.static_data.get("hardware", "unknown"),
             "device_id": self.static_data.get("device_id", "unknown"),
-            "temperature": 0.0
+            "temperature": None
             if self._awaiting_manual_reset_confirmation
-            else temp_raw,
+            else temperature,
             "total_volume": float(total_raw),
             "flow_rate": 0.0 if self._awaiting_manual_reset_confirmation else flow_rate,
             "wasted_volume": self.session_wasted_volume,
@@ -970,13 +1133,15 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
             "shower_volume_comfort_total": self.lifetime_shower_volume_comfort_total,
             "shower_volume_comfort": self.session_shower_volume_comfort,
             "shower_duration_comfort": self.session_shower_duration_comfort,
+            "shower_duration_cold": self.session_shower_duration_cold,
+            "time_to_comfort": self.session_time_to_comfort,
             "raw": {
                 "shower_volume_raw": 0.0
                 if self._awaiting_manual_reset_confirmation
                 else shower_raw,
                 "shower_duration": 0.0
                 if self._awaiting_manual_reset_confirmation
-                else duration_raw,
+                else self.session_duration_total,
             },
         }
 
@@ -987,11 +1152,60 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
         self.last_valid_data = new_data
         self.async_set_updated_data(self.last_valid_data)
 
+    def _record_raw_frames(
+        self,
+        vol_data: bytearray,
+        dur_data: bytearray,
+        temp_data: bytearray,
+        flow_raw_data: bytearray | None,
+    ) -> None:
+        """Keep the frames as received, and log them whenever they change."""
+        frames: dict[str, str | None] = {
+            "volume": vol_data.hex(),
+            "duration": dur_data.hex(),
+            "temperature": temp_data.hex(),
+            "flow": flow_raw_data.hex() if flow_raw_data is not None else None,
+        }
+        if frames != self.last_raw_frames:
+            _LOGGER.debug("Raw BLE frames: %s", frames)
+        self.last_raw_frames = frames
+
+    def _warn_implausible_temperature(self, temperature: float) -> None:
+        """Say once, with what is needed to fix it, that the temperature
+        cannot be decoded for this device."""
+        if self._implausible_temperature_warned:
+            return
+        self._implausible_temperature_warned = True
+        _LOGGER.warning(
+            "Ignoring a water temperature of %.1f °C (raw frame %s): it is "
+            "outside the %.0f-%.0f °C range. This device (firmware %s, "
+            "hardware %s) may encode the temperature differently. Please "
+            "report it, with the diagnostics file, at %s",
+            temperature,
+            self.last_raw_frames.get("temperature"),
+            MIN_WATER_TEMP,
+            MAX_WATER_TEMP,
+            self.static_data.get("firmware", "unknown"),
+            self.static_data.get("hardware", "unknown"),
+            ISSUE_TRACKER_URL,
+        )
+
     def _reset_session_state(self, preserve_wasted: bool = False) -> None:
+        """Zero the per-session accumulators.
+
+        With `preserve_wasted` (comfort-mode auto-sync, where the physical
+        shower goes on), everything that describes the cold phase is kept:
+        wasted volume, cold duration and the time it took to reach comfort.
+        """
         if not preserve_wasted:
             self.session_wasted_volume = 0.0
+            self.session_shower_duration_cold = 0.0
+            self.session_time_to_comfort = None
+            self._session_comfort_seen = False
         self.session_shower_duration_comfort = 0.0
         self.session_shower_volume_comfort = 0.0
+        self.session_duration_total = 0.0
+        self._last_temp_raw = None
         self._thresholds_read_for_session = False
 
     def _evaluate_offline_timeout(self) -> None:
@@ -1024,10 +1238,14 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
         self.last_valid_data = dict(self.last_valid_data)
         if reset_wasted:
             self.last_valid_data["wasted_volume"] = 0.0
+            self.last_valid_data["shower_duration_cold"] = 0.0
+            self.last_valid_data["time_to_comfort"] = None
         self.last_valid_data["shower_volume_comfort"] = 0.0
         self.last_valid_data["shower_duration_comfort"] = 0.0
         self.last_valid_data["flow_rate"] = 0.0
-        self.last_valid_data["temperature"] = 0.0
+        # Unknown, not 0 C: a zero would be recorded as a real reading and
+        # drag down the history and its averages.
+        self.last_valid_data["temperature"] = None
 
         if "raw" in self.last_valid_data:
             self.last_valid_data["raw"] = dict(self.last_valid_data["raw"])
@@ -1065,8 +1283,78 @@ class HydraoDataUpdateCoordinator(DataUpdateCoordinator):
         self._awaiting_manual_reset_confirmation = True
         self._reset_session_state(preserve_wasted=True)
 
+    async def async_load_totals(self) -> None:
+        """Load the lifetime totals saved by a previous run, if there are any.
+
+        Without a saved file the totals are left untouched: see the comment on
+        `totals_loaded_from_store` for how they are then migrated.
+        """
+        try:
+            stored = await self._store.async_load()
+        except HomeAssistantError as err:
+            _LOGGER.warning(
+                "Could not read the saved totals, using the last known values "
+                "of the sensors instead: %s",
+                err,
+            )
+            return
+
+        if not stored:
+            return
+
+        try:
+            wasted = float(stored["wasted_volume_total"])
+            comfort = float(stored["shower_volume_comfort_total"])
+        except (KeyError, TypeError, ValueError):
+            _LOGGER.warning("Ignoring unreadable saved totals: %r", stored)
+            return
+
+        self.lifetime_wasted_volume_total = wasted
+        self.lifetime_shower_volume_comfort_total = comfort
+        self.totals_loaded_from_store = True
+
+        # Publish them right away: the total sensors then show the saved
+        # values even before the first Bluetooth reading, whatever state the
+        # entities were restored to.
+        self.last_valid_data = {
+            **self.last_valid_data,
+            "wasted_volume_total": wasted,
+            "shower_volume_comfort_total": comfort,
+        }
+        self.async_set_updated_data(self.last_valid_data)
+
+    def _totals_snapshot(self) -> dict[str, float]:
+        """The data to save. Called by the Store when it actually writes."""
+        self._totals_save_scheduled = False
+        return {
+            "wasted_volume_total": self.lifetime_wasted_volume_total,
+            "shower_volume_comfort_total": self.lifetime_shower_volume_comfort_total,
+        }
+
+    @callback
+    def _async_schedule_totals_save(self) -> None:
+        """Have the totals written soon, at most once every STORAGE_SAVE_DELAY.
+
+        Once a save is pending, further changes simply ride on it: the data is
+        read when the write happens. Calling the Store on every reading instead
+        would keep postponing the write (its delay restarts at each call), so
+        nothing would be written until the shower is over.
+        """
+        if self._totals_save_scheduled:
+            return
+        self._totals_save_scheduled = True
+        self._store.async_delay_save(self._totals_snapshot, STORAGE_SAVE_DELAY)
+
+    async def async_save_totals(self) -> None:
+        """Write the totals now, if a save is pending (the entry unloads)."""
+        if not self._totals_save_scheduled:
+            return
+        await self._store.async_save(self._totals_snapshot())
+
     def restore_wasted_volume_total(self, value: float) -> None:
         self.lifetime_wasted_volume_total = value
+        self._async_schedule_totals_save()
 
     def restore_shower_volume_comfort_total(self, value: float) -> None:
         self.lifetime_shower_volume_comfort_total = value
+        self._async_schedule_totals_save()

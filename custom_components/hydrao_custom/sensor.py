@@ -1,7 +1,10 @@
 # Copyright (c) 2026 Adrien40
 # SPDX-License-Identifier: GPL-3.0-only
 
-from typing import Any, ClassVar
+import time
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, cast
 
 from homeassistant.components.bluetooth import (
     BluetoothCallbackMatcher,
@@ -17,9 +20,9 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorEntityDescription,
     SensorStateClass,
-    StateType,
 )
 from homeassistant.const import (
+    SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     EntityCategory,
     UnitOfTemperature,
     UnitOfTime,
@@ -27,9 +30,10 @@ from homeassistant.const import (
     UnitOfVolumeFlowRate,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.typing import StateType
+from homeassistant.util.unit_conversion import DurationConverter
 
 from .const import (
     BT_STATUS_CONNECTING,
@@ -43,118 +47,216 @@ from .const import (
     HydraoConfigEntry,
 )
 from .coordinator import HydraoDataUpdateCoordinator
+from .entity import HydraoEntity
+
+# Read-only entities, no I/O on update.
+PARALLEL_UPDATES = 0
+
+# The RSSI sensor writes its state at most this often (seconds). The signal
+# strength is a support figure: a once-per-second refresh is plenty.
+RSSI_MIN_UPDATE_INTERVAL = 1.0
+
+
+@dataclass(frozen=True, kw_only=True)
+class HydraoSensorEntityDescription(SensorEntityDescription):
+    """A sensor whose value comes from the coordinator.
+
+    `value_fn` reads the live value. When it returns None, the sensor falls
+    back on the value restored from its last state (nothing has been received
+    yet), unless `none_is_valid` is set: for those sensors "unknown" is a real
+    answer once the coordinator has published data (a temperature that cannot
+    be decoded, a time to comfort that was not observed).
+    """
+
+    value_fn: Callable[[HydraoDataUpdateCoordinator], Any]
+    none_is_valid: bool = False
+
+
+def _live(key: str) -> Callable[[HydraoDataUpdateCoordinator], Any]:
+    """The value of `key` in the latest data published by the coordinator."""
+
+    def value(coordinator: HydraoDataUpdateCoordinator) -> Any:
+        return (coordinator.data or {}).get(key)
+
+    return value
+
+
+def _live_raw(key: str) -> Callable[[HydraoDataUpdateCoordinator], Any]:
+    """Same, for the figures the coordinator keeps under its "raw" entry."""
+
+    def value(coordinator: HydraoDataUpdateCoordinator) -> Any:
+        return (coordinator.data or {}).get("raw", {}).get(key)
+
+    return value
+
+
+def _flow_rate(coordinator: HydraoDataUpdateCoordinator) -> Any:
+    """The flow is 0 whenever there is nothing to report: no water, no data."""
+    return (coordinator.data or {}).get("flow_rate") or 0.0
+
+
+def _threshold(index: int) -> Callable[[HydraoDataUpdateCoordinator], Any]:
+    """One of the four volume thresholds, as last read from the device."""
+
+    def value(coordinator: HydraoDataUpdateCoordinator) -> Any:
+        thresholds = coordinator.static_data.get("thresholds")
+        if thresholds is None:
+            return None
+        try:
+            return float(thresholds[index])
+        except (IndexError, ValueError, TypeError):
+            return None
+
+    return value
+
 
 SENSOR_DESCRIPTIONS = [
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
         key="temperature",
+        value_fn=_live("temperature"),
+        none_is_valid=True,
         translation_key="temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
         key="total_volume",
+        value_fn=_live("total_volume"),
         translation_key="total_volume",
         device_class=SensorDeviceClass.WATER,
         native_unit_of_measurement=UnitOfVolume.LITERS,
         state_class=SensorStateClass.TOTAL_INCREASING,
         suggested_display_precision=0,
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
         key="flow_rate",
+        value_fn=_flow_rate,
         translation_key="flow_rate",
-        icon="mdi:water-pump",
+        device_class=SensorDeviceClass.VOLUME_FLOW_RATE,
         native_unit_of_measurement=UnitOfVolumeFlowRate.LITERS_PER_MINUTE,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
         suggested_display_precision=1,
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
         key="wasted_volume",
+        value_fn=_live("wasted_volume"),
         translation_key="wasted_volume",
-        icon="mdi:water-minus",
-        device_class=SensorDeviceClass.WATER,
-        native_unit_of_measurement=UnitOfVolume.LITERS,
-        state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=0,
-    ),
-    SensorEntityDescription(
-        key="wasted_volume_total",
-        translation_key="wasted_volume_total",
-        icon="mdi:water-minus",
         device_class=SensorDeviceClass.WATER,
         native_unit_of_measurement=UnitOfVolume.LITERS,
         state_class=SensorStateClass.TOTAL_INCREASING,
         suggested_display_precision=0,
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
+        key="wasted_volume_total",
+        value_fn=_live("wasted_volume_total"),
+        translation_key="wasted_volume_total",
+        device_class=SensorDeviceClass.WATER,
+        native_unit_of_measurement=UnitOfVolume.LITERS,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=0,
+    ),
+    HydraoSensorEntityDescription(
         key="shower_volume_comfort",
+        value_fn=_live("shower_volume_comfort"),
         translation_key="shower_volume_comfort",
         device_class=SensorDeviceClass.WATER,
         native_unit_of_measurement=UnitOfVolume.LITERS,
-        state_class=SensorStateClass.MEASUREMENT,
+        state_class=SensorStateClass.TOTAL_INCREASING,
         suggested_display_precision=0,
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
         key="shower_volume_comfort_total",
+        value_fn=_live("shower_volume_comfort_total"),
         translation_key="shower_volume_comfort_total",
         device_class=SensorDeviceClass.WATER,
         native_unit_of_measurement=UnitOfVolume.LITERS,
         state_class=SensorStateClass.TOTAL_INCREASING,
         suggested_display_precision=0,
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
         key="shower_volume_raw",
+        value_fn=_live_raw("shower_volume_raw"),
         translation_key="shower_volume_raw",
         device_class=SensorDeviceClass.WATER,
         native_unit_of_measurement=UnitOfVolume.LITERS,
-        state_class=SensorStateClass.MEASUREMENT,
+        state_class=SensorStateClass.TOTAL_INCREASING,
         suggested_display_precision=0,
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
         key="shower_duration",
+        value_fn=_live_raw("shower_duration"),
         translation_key="shower_duration",
         device_class=SensorDeviceClass.DURATION,
-        native_unit_of_measurement=UnitOfTime.MINUTES,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        suggested_unit_of_measurement=UnitOfTime.MINUTES,
         state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
+        suggested_display_precision=2,
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
         key="shower_duration_comfort",
+        value_fn=_live("shower_duration_comfort"),
         translation_key="shower_duration_comfort",
         device_class=SensorDeviceClass.DURATION,
-        native_unit_of_measurement=UnitOfTime.MINUTES,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        suggested_unit_of_measurement=UnitOfTime.MINUTES,
         state_class=SensorStateClass.MEASUREMENT,
-        suggested_display_precision=1,
+        suggested_display_precision=2,
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
+        key="shower_duration_cold",
+        value_fn=_live("shower_duration_cold"),
+        translation_key="shower_duration_cold",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        suggested_unit_of_measurement=UnitOfTime.MINUTES,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+    ),
+    HydraoSensorEntityDescription(
+        key="time_to_comfort",
+        value_fn=_live("time_to_comfort"),
+        none_is_valid=True,
+        translation_key="time_to_comfort",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        suggested_unit_of_measurement=UnitOfTime.MINUTES,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+    ),
+    HydraoSensorEntityDescription(
         key="threshold_1",
+        value_fn=_threshold(0),
         translation_key="threshold_1",
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=UnitOfVolume.LITERS,
-        icon="mdi:water-opacity",
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
         key="threshold_2",
+        value_fn=_threshold(1),
         translation_key="threshold_2",
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=UnitOfVolume.LITERS,
-        icon="mdi:water-opacity",
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
         key="threshold_3",
+        value_fn=_threshold(2),
         translation_key="threshold_3",
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=UnitOfVolume.LITERS,
-        icon="mdi:water-opacity",
     ),
-    SensorEntityDescription(
+    HydraoSensorEntityDescription(
         key="threshold_4",
+        value_fn=_threshold(3),
         translation_key="threshold_4",
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=UnitOfVolume.LITERS,
-        icon="mdi:water-opacity",
     ),
 ]
 
@@ -174,7 +276,9 @@ async def async_setup_entry(
 ) -> None:
     coordinator = entry.runtime_data
 
-    sensors = [HydraoSensor(coordinator, desc) for desc in SENSOR_DESCRIPTIONS]
+    sensors: list[SensorEntity] = [
+        HydraoSensor(coordinator, desc) for desc in SENSOR_DESCRIPTIONS
+    ]
     sensors.append(HydraoBluetoothStatusSensor(coordinator))
     sensors.append(HydraoRealTimeRSSISensor(coordinator))
     sensors.append(HydraoSoapingDurationSensor(coordinator))
@@ -183,18 +287,17 @@ async def async_setup_entry(
     async_add_entities(sensors)
 
 
-class HydraoSensor(CoordinatorEntity, RestoreSensor):
-    _attr_has_entity_name = True
+class HydraoSensor(HydraoEntity, RestoreSensor):
+    entity_description: HydraoSensorEntityDescription
 
     def __init__(
         self,
         coordinator: HydraoDataUpdateCoordinator,
-        description: SensorEntityDescription,
+        description: HydraoSensorEntityDescription,
     ) -> None:
-        super().__init__(coordinator)
+        super().__init__(coordinator, description.key)
         self.entity_description = description
-        self._attr_unique_id = f"{coordinator.address}_{description.key}"
-        self._restored_value = None
+        self._restored_value: Any = None
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -205,11 +308,18 @@ class HydraoSensor(CoordinatorEntity, RestoreSensor):
             is not None
             and self.entity_description.key != "flow_rate"
         ):
-            self._restored_value = last_sensor_data.native_value
+            self._restored_value = self._convert_restored_duration(
+                last_sensor_data.native_value,
+                last_sensor_data.native_unit_of_measurement,
+            )
 
+            # The restored value of the two total sensors is only adopted when
+            # the totals are not already saved in their own file (migration
+            # from 1.0.0, see the coordinator).
             if (
                 self.entity_description.key == "wasted_volume_total"
                 and self._restored_value is not None
+                and not self.coordinator.totals_loaded_from_store
             ):
                 try:
                     self.coordinator.restore_wasted_volume_total(
@@ -220,6 +330,7 @@ class HydraoSensor(CoordinatorEntity, RestoreSensor):
             elif (
                 self.entity_description.key == "shower_volume_comfort_total"
                 and self._restored_value is not None
+                and not self.coordinator.totals_loaded_from_store
             ):
                 try:
                     self.coordinator.restore_shower_volume_comfort_total(
@@ -228,66 +339,51 @@ class HydraoSensor(CoordinatorEntity, RestoreSensor):
                 except (ValueError, TypeError):
                     pass
 
-    @property
-    def device_info(self) -> DeviceInfo:
-        return self.coordinator.device_info
+    def _convert_restored_duration(self, value: Any, stored_unit: str | None) -> Any:
+        """Express a restored duration in this sensor's native unit.
 
-    _RAW_KEYS: ClassVar[set[str]] = {"shower_volume_raw", "shower_duration"}
-    _NUMERIC_KEYS = frozenset(
-        {
-            "total_volume",
-            "shower_volume_comfort",
-            "shower_volume_comfort_total",
-            "wasted_volume",
-            "wasted_volume_total",
-            "shower_volume_raw",
-            "temperature",
-            "shower_duration",
-            "shower_duration_comfort",
-            "flow_rate",
-        }
-    )
+        Duration sensors used to be stored in minutes; after the switch to
+        seconds, an old restored value must not be re-read as seconds.
+        Non-duration sensors, unknown units and unconvertible values are
+        returned untouched.
+        """
+        native_unit = self.entity_description.native_unit_of_measurement
+        if (
+            self.entity_description.device_class != SensorDeviceClass.DURATION
+            or value is None
+            or stored_unit is None
+            or native_unit is None
+            or stored_unit == native_unit
+        ):
+            return value
+        try:
+            return DurationConverter.convert(float(value), stored_unit, native_unit)
+        except (ValueError, TypeError, HomeAssistantError):
+            return value
 
     @property
     def native_value(self) -> StateType:
-        data = self.coordinator.data or {}
-        key = self.entity_description.key
+        description = self.entity_description
+        value = description.value_fn(self.coordinator)
+        if value is not None:
+            return float(value)
 
-        if key.startswith("threshold_"):
-            idx = int(key.split("_")[1]) - 1
-            if "thresholds" in self.coordinator.static_data:
-                try:
-                    return float(self.coordinator.static_data["thresholds"][idx])
-                except (IndexError, ValueError, TypeError):
-                    pass
-            if self._restored_value is not None:
-                try:
-                    return float(self._restored_value)
-                except (ValueError, TypeError):
-                    pass
-            return self._restored_value
-
-        if key in self._RAW_KEYS:
-            val = data.get("raw", {}).get(key)
-        else:
-            val = data.get(key)
-
-        if val is None:
-            if key == "flow_rate":
-                return 0.0
-            if self._restored_value is not None:
-                try:
-                    if key in self._NUMERIC_KEYS:
-                        return float(self._restored_value)
-                except (ValueError, TypeError):
-                    pass
-                return self._restored_value
+        if description.none_is_valid and description.key in (
+            self.coordinator.data or {}
+        ):
             return None
 
-        if key in self._NUMERIC_KEYS:
-            return float(val)
+        return self._restored_number()
 
-        return val
+    def _restored_number(self) -> StateType:
+        """The value restored from the last state, as a number when it is one."""
+        restored = self._restored_value
+        if restored is None:
+            return None
+        try:
+            return float(restored)
+        except (ValueError, TypeError):
+            return cast(StateType, restored)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -307,71 +403,52 @@ class HydraoSensor(CoordinatorEntity, RestoreSensor):
         return attrs
 
 
-class HydraoBluetoothStatusSensor(CoordinatorEntity, SensorEntity):
-    _attr_has_entity_name = True
+class HydraoBluetoothStatusSensor(HydraoEntity, SensorEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_translation_key = "bluetooth_status"
-    _attr_options: ClassVar[list[str]] = [
-        BT_STATUS_WAITING,
-        BT_STATUS_CONNECTING,
-        BT_STATUS_SUCCESS,
-        BT_STATUS_ERROR,
-        BT_STATUS_WRITING_SYNC,
-        BT_STATUS_SYNC_APPLIED,
-        BT_STATUS_SYNC_FAILED,
-        BT_STATUS_REBOOTING,
-    ]
 
     def __init__(self, coordinator: HydraoDataUpdateCoordinator) -> None:
-        super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.address}_bluetooth_status"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        return self.coordinator.device_info
+        super().__init__(coordinator, "bluetooth_status")
+        self._attr_options = [
+            BT_STATUS_WAITING,
+            BT_STATUS_CONNECTING,
+            BT_STATUS_SUCCESS,
+            BT_STATUS_ERROR,
+            BT_STATUS_WRITING_SYNC,
+            BT_STATUS_SYNC_APPLIED,
+            BT_STATUS_SYNC_FAILED,
+            BT_STATUS_REBOOTING,
+        ]
 
     @property
     def native_value(self) -> StateType:
         if not self.coordinator.data:
             return BT_STATUS_WAITING
-        return self.coordinator.data.get("bluetooth_status", BT_STATUS_WAITING)
-
-    @property
-    def icon(self) -> str:
-        icons = {
-            BT_STATUS_WAITING: "mdi:bluetooth-off",
-            BT_STATUS_CONNECTING: "mdi:bluetooth-connect",
-            BT_STATUS_SUCCESS: "mdi:bluetooth",
-            BT_STATUS_ERROR: "mdi:bluetooth-off",
-            BT_STATUS_WRITING_SYNC: "mdi:cog-sync",
-            BT_STATUS_SYNC_APPLIED: "mdi:check-circle",
-            BT_STATUS_SYNC_FAILED: "mdi:alert-circle",
-            BT_STATUS_REBOOTING: "mdi:restart",
-        }
-        return icons.get(str(self.native_value), "mdi:bluetooth-alert")
+        return cast(
+            StateType,
+            self.coordinator.data.get("bluetooth_status", BT_STATUS_WAITING),
+        )
 
 
-# Developer's choice: This sensor inherits from CoordinatorEntity to ensure its state
+# Developer's choice: This sensor inherits from HydraoEntity (a CoordinatorEntity) to ensure its state
 # explicitly syncs with the main coordinator's update cycles and base availability logic,
 # despite maintaining its own passive BLE listener for real-time RSSI updates.
-class HydraoRealTimeRSSISensor(CoordinatorEntity, SensorEntity):
-    _attr_has_entity_name = True
+class HydraoRealTimeRSSISensor(HydraoEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
-    _attr_native_unit_of_measurement = "dBm"
+    _attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    # Signal strength is a support tool, not something to show by default.
+    _attr_entity_registry_enabled_default = False
     _attr_translation_key = "rssi"
     _attr_should_poll = False
 
     def __init__(self, coordinator: HydraoDataUpdateCoordinator) -> None:
-        super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.address}_rssi"
+        super().__init__(coordinator, "rssi")
         self._attr_native_value = None
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        return self.coordinator.device_info
+        # time.monotonic() of the last state written from an advertisement.
+        self._last_state_write: float | None = None
 
     @property
     def available(self) -> bool:
@@ -403,7 +480,7 @@ class HydraoRealTimeRSSISensor(CoordinatorEntity, SensorEntity):
         last_info = async_last_service_info(
             self.hass, self.coordinator.address, connectable=False
         )
-        if last_info and hasattr(last_info, "rssi"):
+        if last_info:
             self._attr_native_value = last_info.rssi
 
         self.async_write_ha_state()
@@ -412,6 +489,15 @@ class HydraoRealTimeRSSISensor(CoordinatorEntity, SensorEntity):
         def _async_on_bluetooth_change(
             info: BluetoothServiceInfoBleak, change: BluetoothChange
         ) -> None:
+            if info.rssi == self._attr_native_value:
+                return
+            now = time.monotonic()
+            if (
+                self._last_state_write is not None
+                and now - self._last_state_write < RSSI_MIN_UPDATE_INTERVAL
+            ):
+                return
+            self._last_state_write = now
             self._attr_native_value = info.rssi
             self.async_write_ha_state()
 
@@ -425,17 +511,14 @@ class HydraoRealTimeRSSISensor(CoordinatorEntity, SensorEntity):
         )
 
 
-class HydraoSoapingDurationSensor(CoordinatorEntity, RestoreSensor):
-    _attr_has_entity_name = True
-
+class HydraoSoapingDurationSensor(HydraoEntity, RestoreSensor):
     def __init__(
         self,
         coordinator: HydraoDataUpdateCoordinator,
     ) -> None:
-        super().__init__(coordinator)
+        super().__init__(coordinator, SOAPING_DURATION_DESC.key)
         self.entity_description = SOAPING_DURATION_DESC
-        self._attr_unique_id = f"{coordinator.address}_{SOAPING_DURATION_DESC.key}"
-        self._restored_value = None
+        self._restored_value: Any = None
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -445,14 +528,10 @@ class HydraoSoapingDurationSensor(CoordinatorEntity, RestoreSensor):
                 self._restored_value = last_sensor_data.native_value
 
     @property
-    def device_info(self) -> DeviceInfo:
-        return self.coordinator.device_info
-
-    @property
     def native_value(self) -> StateType:
         val = self.coordinator.static_data.get("soaping_duration")
         if val is not None:
-            return val
+            return cast(StateType, val)
 
         if self._restored_value is not None:
             try:
@@ -463,30 +542,23 @@ class HydraoSoapingDurationSensor(CoordinatorEntity, RestoreSensor):
         return None
 
 
-class HydraoPendingConfigSensor(CoordinatorEntity, SensorEntity):
-    _attr_has_entity_name = True
+class HydraoPendingConfigSensor(HydraoEntity, SensorEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_translation_key = "pending_config"
-    _attr_icon = "mdi:file-sync-outline"
-    _attr_options: ClassVar[list[str]] = [
-        "none",
-        "soaping",
-        "thresholds",
-        "colors",
-        "soaping_thresholds",
-        "soaping_colors",
-        "thresholds_colors",
-        "soaping_thresholds_colors",
-    ]
 
     def __init__(self, coordinator: HydraoDataUpdateCoordinator) -> None:
-        super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.address}_pending_config"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        return self.coordinator.device_info
+        super().__init__(coordinator, "pending_config")
+        self._attr_options = [
+            "none",
+            "soaping",
+            "thresholds",
+            "colors",
+            "soaping_thresholds",
+            "soaping_colors",
+            "thresholds_colors",
+            "soaping_thresholds_colors",
+        ]
 
     @property
     def native_value(self) -> StateType:

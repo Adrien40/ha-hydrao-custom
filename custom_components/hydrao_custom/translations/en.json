@@ -7,6 +7,10 @@
         "data": {
           "address": "🏷️ MAC Address",
           "min_temp_threshold": "Minimum Comfort Temperature"
+        },
+        "data_description": {
+          "address": "Bluetooth MAC address of the device, for example AA:BB:CC:DD:EE:FF. Colons, dashes and spaces are accepted.",
+          "min_temp_threshold": "Water at or above this temperature counts as comfortable, water below it counts as wasted. Between 0 and 50 °C. Used by Home Assistant only, never sent to the device."
         }
       },
       "bluetooth_confirm": {
@@ -14,6 +18,9 @@
         "description": "💧 Do you want to add **{name}** ({address})?\n\n✅ You can set the **Minimum Comfort Temperature** now.\n\n⏳ The **Maximum Soaping Time** and Thresholds can only be read and modified after the first connection.\n\n💧 Remember to run the water to wake up the device and access these settings!",
         "data": {
           "min_temp_threshold": "Minimum Comfort Temperature"
+        },
+        "data_description": {
+          "min_temp_threshold": "Water at or above this temperature counts as comfortable, water below it counts as wasted. Between 0 and 50 °C. Used by Home Assistant only, never sent to the device."
         }
       }
     },
@@ -142,6 +149,12 @@
       },
       "shower_duration_comfort": {
         "name": "Comfort Shower Duration"
+      },
+      "shower_duration_cold": {
+        "name": "Cold Water Shower Duration"
+      },
+      "time_to_comfort": {
+        "name": "Time to Comfort Temperature"
       },
       "wasted_volume_total": {
         "name": "Total Cumulative Wasted Volume"

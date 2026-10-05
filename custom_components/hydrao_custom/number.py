@@ -1,6 +1,8 @@
 # Copyright (c) 2026 Adrien40
 # SPDX-License-Identifier: GPL-3.0-only
 
+from typing import cast
+
 from homeassistant.components.number import (
     NumberEntity,
     NumberEntityDescription,
@@ -8,13 +10,15 @@ from homeassistant.components.number import (
 )
 from homeassistant.const import EntityCategory, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import HydraoConfigEntry
 from .coordinator import HydraoDataUpdateCoordinator
+from .entity import HydraoEntity
 from .entity_helpers import apply_and_persist
+
+# Writes are queued locally and sent on the next BLE connection.
+PARALLEL_UPDATES = 1
 
 COMFORT_TEMP_DESC = NumberEntityDescription(
     key="comfort_temperature",
@@ -41,9 +45,7 @@ async def async_setup_entry(
     )
 
 
-class HydraoNumberEntity(CoordinatorEntity, NumberEntity):
-    _attr_has_entity_name = True
-
+class HydraoNumberEntity(HydraoEntity, NumberEntity):
     def __init__(
         self,
         coordinator: HydraoDataUpdateCoordinator,
@@ -51,19 +53,14 @@ class HydraoNumberEntity(CoordinatorEntity, NumberEntity):
         description: NumberEntityDescription,
         default_value: float,
     ) -> None:
-        super().__init__(coordinator)
+        super().__init__(coordinator, description.key)
         self._entry = entry
         self.entity_description = description
-        self._attr_unique_id = f"{coordinator.address}_{description.key}"
         self._attr_native_value = default_value
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        return self.coordinator.device_info
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        self._apply_value(self._attr_native_value)
+        self._apply_value(cast(float, self._attr_native_value))
 
     async def async_set_native_value(self, value: float) -> None:
         self._attr_native_value = value
