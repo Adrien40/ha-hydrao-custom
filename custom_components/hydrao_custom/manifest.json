@@ -1,0 +1,25 @@
+{
+  "domain": "hydrao_custom",
+  "name": "Hydrao Custom",
+  "bluetooth": [
+    {
+      "local_name": "HYDRAO*"
+    }
+  ],
+  "codeowners": [
+    "@Adrien40"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "bluetooth"
+  ],
+  "documentation": "https://github.com/Adrien40/ha-hydrao-custom",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Adrien40/ha-hydrao-custom/issues",
+  "requirements": [
+    "bleak>=0.21.1",
+    "bleak-retry-connector>=4.0.0"
+  ],
+  "version": "1.0.0"
+}
