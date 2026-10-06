@@ -170,25 +170,33 @@ The integration does **not poll** the device. It listens passively for the Hydra
 ### 🤖 Automation Examples
 Replace the entity IDs below with yours (they start with your device's name, for example `sensor.hydrao_eeff_...`).
 
-**Notify when a shower wasted too much cold water**
+**Notify when cold water is wasted during a shower**
 ```yaml
-automation:
-  - alias: "Shower: wasted water report"
-    triggers:
-      - trigger: state
-        entity_id: sensor.hydrao_eeff_bluetooth_status
-        from: "success"
-        to: "waiting"
-    conditions:
-      - condition: numeric_state
-        entity_id: sensor.hydrao_eeff_wasted_volume_cold_water
-        above: 5
-    actions:
-      - action: notify.notify
-        data:
-          message: >-
-            {{ states('sensor.hydrao_eeff_wasted_volume_cold_water') }} L of
-            cold water wasted during this shower.
+alias: "Shower - Cold water wasted summary"
+description: ""
+triggers:
+  - trigger: button.pressed
+    target:
+      entity_id: button.hydrao_aloe_douche_terminee
+    options: {}
+  - trigger: state
+    entity_id:
+      - sensor.hydrao_aloe_etat_bluetooth
+    to:
+      - waiting
+    for:
+      seconds: "{{ states('sensor.hydrao_aloe_duree_maximale_de_savonnage') | int(300) }}"
+conditions:
+  - condition: numeric_state
+    entity_id: sensor.hydrao_aloe_volume_perdu_eau_froide
+    above: 0
+actions:
+  - action: notify.notify
+    data:
+      message: >-
+        🚿 {{ states('sensor.hydrao_aloe_volume_perdu_eau_froide') }} L of cold
+        water wasted during this shower ❄️️💧
+mode: single
 ```
 
 **End the shower from an automation**
@@ -196,7 +204,7 @@ automation:
 actions:
   - action: button.press
     target:
-      entity_id: button.hydrao_eeff_shower_ended
+      entity_id: button.hydrao_aloe_shower_ended
 ```
 
 ---
