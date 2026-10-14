@@ -58,7 +58,7 @@ Si ce projet vous est utile, vous pouvez soutenir son développement 🙏
   <em>🐠 Votre douche en aquarium vivant : le niveau d'eau baisse au fil des litres</em>
 </p>
 
-Le même auteur a aussi créé **[Shower Aquarium Card](https://github.com/Adrien40/ha-shower-aquarium-card)**, une carte Lovelace personnalisée conçue pour cette intégration. Elle transforme le volume, la température et les seuils de litres de votre Hydrao en aquarium animé : le niveau d'eau suit les litres utilisés, et dépasser votre budget cible stresse les poissons. Elle est facultative, l'intégration fonctionne très bien seule.
+J’ai aussi développé **[Shower Aquarium Card](https://github.com/Adrien40/ha-shower-aquarium-card)**, une carte Lovelace conçue pour cette intégration. Elle transforme le volume, la température et les seuils de litres de votre Hydrao en aquarium animé : le niveau d'eau suit les litres utilisés, et dépasser votre budget cible stresse les poissons. Elle est facultative, l'intégration fonctionne très bien seule.
 
 ```yaml
 type: custom:shower-aquarium-card
