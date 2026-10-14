@@ -58,7 +58,7 @@ If this project is useful to you, you can support its development 🙏
   <em>🐠 Your shower as a living aquarium: the water level drops as the liters flow</em>
 </p>
 
-The same author also made **[Shower Aquarium Card](https://github.com/Adrien40/ha-shower-aquarium-card)**, a custom Lovelace card made for this integration. It turns the volume, the temperature and the liter thresholds of your Hydrao into an animated aquarium: the water level follows the liters used, and going over your target budget stresses the fish. It is optional, the integration works on its own.
+I also built **[Shower Aquarium Card](https://github.com/Adrien40/ha-shower-aquarium-card)**, a Lovelace card made for this integration. It turns the volume, the temperature and the liter thresholds of your Hydrao into an animated aquarium: the water level follows the liters used, and going over your target budget stresses the fish. It is optional, the integration works on its own.
 
 ```yaml
 type: custom:shower-aquarium-card
