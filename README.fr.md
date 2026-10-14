@@ -29,6 +29,7 @@ Si ce projet vous est utile, vous pouvez soutenir son développement 🙏
 - 🎨 Réglage des 4 seuils en litres et choix de leur couleur via un sélecteur direct intégré
 - 🌡️ Température de confort minimum réglable dans Home Assistant (pas d'envoi à l'appareil Hydrao)
 - 🔘 Bouton "Douche Terminée" pour clôturer une douche manuellement ou via une automatisation (Ex. : Hey Google, Douche Terminée "Prénom") — <sub>un `input_boolean` peut être nécessaire pour le relier à Google Assistant</sub>
+- 🐠 Carte compagnon facultative : [Shower Aquarium Card](https://github.com/Adrien40/ha-shower-aquarium-card), votre douche en aquarium animé
 - ⚙️ Installation via HACS en 2 minutes
 
 ---
@@ -44,6 +45,28 @@ Si ce projet vous est utile, vous pouvez soutenir son développement 🙏
 <p align="center">
   <em>🔍 Entités exposées par l'intégration & ⚙️ Options de Configuration avancées</em>
 </p>
+
+---
+
+### 🐠 Carte compagnon : Shower Aquarium Card
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Adrien40/ha-shower-aquarium-card/main/docs/screenshots/card_preview.gif" alt="Aperçu animé de la Shower Aquarium Card : un aquarium dont les poissons et l'eau réagissent à la douche" width="505">
+</p>
+
+<p align="center">
+  <em>🐠 Votre douche en aquarium vivant : le niveau d'eau baisse au fil des litres</em>
+</p>
+
+Le même auteur a aussi créé **[Shower Aquarium Card](https://github.com/Adrien40/ha-shower-aquarium-card)**, une carte Lovelace personnalisée conçue pour cette intégration. Elle transforme le volume, la température et les seuils de litres de votre Hydrao en aquarium animé : le niveau d'eau suit les litres utilisés, et dépasser votre budget cible stresse les poissons. Elle est facultative, l'intégration fonctionne très bien seule.
+
+```yaml
+type: custom:shower-aquarium-card
+entity: sensor.hydrao_aloe_volume_douche_confort
+temperature_entity: sensor.hydrao_aloe_temperature
+```
+
+Utilisez les identifiants de vos propres entités. Voir la [documentation de la carte](https://github.com/Adrien40/ha-shower-aquarium-card#avec-hydrao-custom) pour toutes les options.
 
 ---
 
@@ -163,6 +186,7 @@ L'intégration ne **fait pas de polling** : elle écoute passivement les annonce
 * **Réduire l'eau gaspillée :** voir, douche après douche, combien de litres d'eau froide coulent avant d'atteindre la bonne température, et suivre la tendance avec les capteurs cumulés.
 * **Des seuils en litres qui ont du sens :** avec le **Synchro Mode Confort**, les paliers de couleur de l'appareil ne comptent que l'eau réellement confortable.
 * **Présence sous la douche :** utiliser l'**État Bluetooth** (*Connecté*) comme signal « douche en cours » pour la ventilation, l'éclairage ou le chauffage.
+* **Un tableau de bord ludique :** afficher votre douche en aquarium animé avec la carte compagnon [Shower Aquarium Card](https://github.com/Adrien40/ha-shower-aquarium-card), pour que toute la famille voie défiler les litres.
 * **Pilotage vocal ou automatisé :** terminer une douche ou changer la température de confort depuis un script, un tableau de bord ou un assistant vocal.
 
 ---

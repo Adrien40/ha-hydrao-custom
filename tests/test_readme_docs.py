@@ -69,6 +69,9 @@ def test_automation_examples_are_valid_yaml(readme):
 # ---------------------------------------------------------------------------
 
 REPOSITORY = "Adrien40/ha-hydrao-custom"
+# The READMEs also link to the optional companion dashboard card.
+COMPANION_CARD = "Adrien40/ha-shower-aquarium-card"
+ALLOWED_REPOSITORIES = {REPOSITORY, COMPANION_CARD}
 
 
 @pytest.mark.parametrize("readme", ["README.md", "README.fr.md"])
@@ -79,7 +82,7 @@ def test_badges_point_at_this_repository(readme):
     assert "blue-connect" not in text.lower()
     assert "blue_connect" not in text.lower()
     for repository in re.findall(r"github\.com/(Adrien40/[\w.-]+)", text):
-        assert repository == REPOSITORY, repository
+        assert repository in ALLOWED_REPOSITORIES, repository
     for repository in re.findall(
         r"shields\.io/github/[\w-]+/(?:status/)?(Adrien40/[\w.-]+)", text
     ):

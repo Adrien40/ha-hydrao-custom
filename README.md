@@ -29,6 +29,7 @@ If this project is useful to you, you can support its development 🙏
 - 🎨 Set the 4 liter thresholds and pick their colors via a built-in color picker
 - 🌡️ Minimum Comfort Temperature adjustable in Home Assistant (never sent to the Hydrao device)
 - 🔘 "Shower Ended" button to manually close out a shower or trigger it via an automation (e.g. Hey Google, Shower Ended "Name") — <sub>an `input_boolean` may be needed to link it to Google Assistant</sub>
+- 🐠 Optional companion card: [Shower Aquarium Card](https://github.com/Adrien40/ha-shower-aquarium-card), your shower as an animated aquarium
 - ⚙️ HACS installation in 2 minutes
 
 ---
@@ -44,6 +45,28 @@ If this project is useful to you, you can support its development 🙏
 <p align="center">
   <em>🔍 Entities exposed by the integration & ⚙️ Advanced configuration options</em>
 </p>
+
+---
+
+### 🐠 Companion Card: Shower Aquarium Card
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Adrien40/ha-shower-aquarium-card/main/docs/screenshots/card_preview.gif" alt="Animated preview of the Shower Aquarium Card: an aquarium whose fish and water react to the shower" width="505">
+</p>
+
+<p align="center">
+  <em>🐠 Your shower as a living aquarium: the water level drops as the liters flow</em>
+</p>
+
+The same author also made **[Shower Aquarium Card](https://github.com/Adrien40/ha-shower-aquarium-card)**, a custom Lovelace card made for this integration. It turns the volume, the temperature and the liter thresholds of your Hydrao into an animated aquarium: the water level follows the liters used, and going over your target budget stresses the fish. It is optional, the integration works on its own.
+
+```yaml
+type: custom:shower-aquarium-card
+entity: sensor.hydrao_aloe_comfort_shower_volume
+temperature_entity: sensor.hydrao_aloe_temperature
+```
+
+Use the ids of your own entities. See the [card documentation](https://github.com/Adrien40/ha-shower-aquarium-card#with-hydrao-custom) for every option.
 
 ---
 
@@ -163,6 +186,7 @@ The integration does **not poll** the device. It listens passively for the Hydra
 * **Cut wasted water:** see, shower after shower, how many liters of cold water run before the right temperature, and track the trend with the cumulative sensors.
 * **Meaningful liter thresholds:** with **Comfort Mode Sync**, the colored tiers on the device only count water that was actually comfortable.
 * **Shower presence:** use **Bluetooth Status** (*Connected*) as a "shower in progress" signal for the fan, the lights or the heating.
+* **A playful dashboard:** show your shower as an animated aquarium with the companion [Shower Aquarium Card](https://github.com/Adrien40/ha-shower-aquarium-card), so the whole family sees the liters go.
 * **Voice or automation control:** end a shower or change the comfort temperature from a script, a dashboard, or a voice assistant.
 
 ---
